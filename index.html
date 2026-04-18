@@ -33,10 +33,7 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // The world is now 3 times bigger than the screen!
         const levelWidth = 2400; 
-        
-        // The Camera follows Lloyd
         const camera = { x: 0 };
 
         // Lloyd's Stats
@@ -46,7 +43,7 @@
             width: 50,
             height: 50,
             color: "#00aaff", 
-            speed: 6, // Sped him up a little for the big level!       
+            speed: 6,       
             dx: 0,           
             dy: 0,           
             gravity: 0.6,    
@@ -55,20 +52,22 @@
             hasRocketFist: false 
         };
 
-        // Moving items further out into the big level
         const questionBox = { x: 400, y: 180, width: 50, height: 50, active: true };
         const wall = { x: 900, y: 150, width: 50, height: 200, active: true };
         const laser = { x: 1300, y: 200, width: 10, height: 150, active: true, speed: 5, direction: 1 };
         const computer = { x: 1600, y: 300, width: 40, height: 50, hacked: false };
         
-        // NEW: The Cage and the Captured Robots!
         const cage = { x: 2100, y: 200, width: 150, height: 150, active: true };
         const friends = [
-            { x: 2120, y: 300, width: 40, height: 50, color: "#9900ff" }, // Purple friend
-            { x: 2180, y: 300, width: 40, height: 50, color: "#00ff99" }  // Mint friend
+            { x: 2120, y: 300, width: 40, height: 50, color: "#9900ff" }, 
+            { x: 2180, y: 300, width: 40, height: 50, color: "#00ff99" }  
         ];
         
+        // NEW: The Escape Portal!
+        const portal = { x: 2300, y: 200, width: 60, height: 100, active: false };
+        
         let gameWon = false;
+        let inPortal = false; // Checks if Lloyd jumped in!
 
         const keys = { right: false, left: false, up: false };
 
@@ -94,7 +93,7 @@
         }
 
         function update() {
-            if (gameWon) return; // Stop playing if we won!
+            if (inPortal) return; // Stop the game completely if we are warping!
 
             // Movement
             if (keys.right) { lloyd.dx = lloyd.speed; }
@@ -113,13 +112,11 @@
                 lloyd.grounded = true;
             }
 
-            // Screen boundaries (Now uses the giant levelWidth!)
             if (lloyd.x < 0) lloyd.x = 0;
             if (lloyd.x + lloyd.width > levelWidth) lloyd.x = levelWidth - lloyd.width;
 
-            // Camera Logic: Follow Lloyd!
+            // Camera Logic
             camera.x = lloyd.x - (canvas.width / 2) + (lloyd.width / 2);
-            // Stop camera from showing outside the level
             if (camera.x < 0) camera.x = 0;
             if (camera.x > levelWidth - canvas.width) camera.x = levelWidth - canvas.width;
 
@@ -145,7 +142,6 @@
             }
 
             if (laser.active && isTouching(lloyd, laser)) {
-                // Bounce back before the laser!
                 lloyd.x = laser.x - 100;
             }
 
@@ -154,22 +150,26 @@
                 laser.active = false; 
             }
 
-            // NEW: Touching the Cage!
+            // Touching the Cage
             if (cage.active && isTouching(lloyd, cage)) {
                 if (computer.hacked) {
-                    cage.active = false; // Break the cage!
-                    gameWon = true;      // YOU WIN!
+                    cage.active = false; 
+                    gameWon = true;      
+                    portal.active = true; // Turn the portal ON!
                 } else {
-                    // Block him if he didn't hack the system yet
                     if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
                 }
+            }
+
+            // NEW: Touching the Portal
+            if (portal.active && isTouching(lloyd, portal)) {
+                inPortal = true; // TRIGGER LEVEL 2 WARP!
             }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // EVERYTHING INSIDE HERE MOVES WITH THE CAMERA
             ctx.save();
             ctx.translate(-camera.x, 0);
 
@@ -214,29 +214,43 @@
 
             // Draw Cage
             if (cage.active) {
-                ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; // See-through gray
+                ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; 
                 ctx.fillRect(cage.x, cage.y, cage.width, cage.height);
-                // Draw cage bars
                 ctx.fillStyle = "#888";
                 for(let i = 0; i < 5; i++) {
                     ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.height);
                 }
             }
 
-            // Draw Lloyd
-            ctx.fillStyle = lloyd.color;
-            ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
+            // NEW: Draw Portal
+            if (portal.active) {
+                ctx.fillStyle = "#00ffff"; // Glowing Cyan
+                ctx.fillRect(portal.x, portal.y, portal.width, portal.height);
+                ctx.fillStyle = "white";
+                ctx.font = "bold 16px Arial";
+                ctx.fillText("PORTAL", portal.x - 2, portal.y - 10);
+            }
 
-            // END CAMERA DRAWING
+            // Draw Lloyd (Unless he is in the portal!)
+            if (!inPortal) {
+                ctx.fillStyle = lloyd.color;
+                ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
+            }
+
             ctx.restore(); 
 
-            // HUD / UI TEXT (Stays stuck to the screen!)
+            // HUD / UI TEXT
             ctx.fillStyle = "white";
             ctx.font = "20px Arial";
-            if (gameWon) {
-                ctx.fillStyle = "#00ff00";
+            
+            if (inPortal) {
+                ctx.fillStyle = "#00ffff";
                 ctx.font = "bold 40px Arial";
-                ctx.fillText("ROBOTS RESCUED! YOU WIN!", 100, 200);
+                ctx.fillText("WARPING TO LEVEL 2...", 150, 200);
+            } else if (gameWon) {
+                ctx.fillStyle = "#00ff00";
+                ctx.font = "bold 30px Arial";
+                ctx.fillText("ROBOTS RESCUED! ENTER THE PORTAL!", 100, 200);
             } else if (!lloyd.hasRocketFist) {
                 ctx.fillText("Explore the lair! Find the ? block!", 20, 30);
             } else if (!computer.hacked) {
