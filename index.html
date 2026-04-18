@@ -30,13 +30,7 @@
         let gameWon = false;
         const camera = { x: 0 };
 
-        // Lloyd's Stats
-        let lloyd = {
-            x: 50, y: 300, width: 50, height: 50, color: "#00aaff", 
-            speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false,
-            hasRocketFist: false, hasShield: false, hasMech: false
-        };
-
+        let lloyd = {};
         const keys = { right: false, left: false, up: false };
 
         // Game Objects
@@ -45,10 +39,18 @@
         let spikeBalls = []; let sideLasers = []; 
         let groundRobots = []; let birdRobots = []; let enemyLasers = []; let boss = {};
 
+        function resetLloyd() {
+            return {
+                x: 50, y: 300, width: 50, height: 50, color: "#00aaff", 
+                speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false,
+                hasRocketFist: false, hasShield: false, hasMech: false
+            };
+        }
+
         // --- LEVEL 1 SETUP ---
         function loadLevel1() {
             currentLevel = 1;
-            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
             questionBox = { x: 400, y: 180, w: 50, h: 50, active: true, type: "fist" };
             wall = { x: 900, y: 150, w: 50, h: 200, active: true };
@@ -63,7 +65,7 @@
         // --- LEVEL 2 SETUP ---
         function loadLevel2() {
             currentLevel = 2;
-            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 600, h: 50}, {x: 800, y: 350, w: 600, h: 50}, {x: 1600, y: 350, w: 800, h: 50} ];
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "shield" };
             spikeBalls = [ {x: 700, y: -100, r: 20, speed: 4}, {x: 1200, y: -50, r: 20, speed: 5}, {x: 1500, y: -200, r: 20, speed: 6} ];
@@ -79,7 +81,7 @@
         // --- LEVEL 3 SETUP ---
         function loadLevel3() {
             currentLevel = 3;
-            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "mech" };
             enemyLasers = [];
@@ -94,7 +96,6 @@
                 {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1, active: true}
             ];
 
-            // FIXED: The Boss is now shorter (Height: 120 instead of 200)!
             boss = { x: 2100, y: 230, w: 120, h: 120, active: true, timer: 0, hp: 1 };
             
             spikeBalls = []; sideLasers = []; cage = { active: false }; friends = []; portal = { active: false };
@@ -137,7 +138,12 @@
                 }
             }
 
-            if (lloyd.y > 600) { currentLevel === 1 ? loadLevel1() : loadLevel2(); }
+            // Fall in pit
+            if (lloyd.y > 600) { 
+                currentLevel === 1 ? loadLevel1() : loadLevel2(); 
+                return; // Stop updating this frame to prevent errors!
+            }
+            
             if (lloyd.x < 0) lloyd.x = 0;
             if (lloyd.x + lloyd.width > levelWidth) lloyd.x = levelWidth - lloyd.width;
 
@@ -160,8 +166,10 @@
                 else if (currentLevel === 1 && lloyd.dx > 0) { lloyd.x = cage.x - lloyd.width; }
                 else if (currentLevel === 2) { cage.active = false; portal.active = true; }
             }
+            
             if (portal.active && isTouching(lloyd, portal)) {
                 currentLevel === 1 ? loadLevel2() : loadLevel3();
+                return;
             }
 
             if (currentLevel === 1) {
@@ -181,7 +189,10 @@
                     sb.y += sb.speed;
                     if (sb.y > 450) sb.y = -50; 
                     let box = {x: sb.x - sb.r, y: sb.y - sb.r, w: sb.r*2, h: sb.r*2};
-                    if (isTouching(lloyd, box)) { lloyd.hasShield ? lloyd.x -= 10 : loadLevel1(); }
+                    if (isTouching(lloyd, box)) { 
+                        if (lloyd.hasShield) { lloyd.x -= 10; }
+                        else { loadLevel1(); return; } // Safely return!
+                    }
                 }
                 for (let sl of sideLasers) {
                     sl.x += sl.speed * sl.dir;
@@ -199,7 +210,8 @@
                         gr.timer = 0;
                     }
                     if (isTouching(lloyd, gr)) {
-                        if (!lloyd.hasMech) loadLevel3(); else gr.active = false; 
+                        if (!lloyd.hasMech) { loadLevel3(); return; } // Safely return!
+                        else gr.active = false; 
                     }
                 }
 
@@ -213,7 +225,8 @@
                         br.timer = 0;
                     }
                     if (isTouching(lloyd, br)) {
-                        if (!lloyd.hasMech) loadLevel3(); else br.active = false; 
+                        if (!lloyd.hasMech) { loadLevel3(); return; } // Safely return!
+                        else br.active = false; 
                     }
                 }
 
@@ -223,14 +236,14 @@
                     
                     if (isTouching(lloyd, l)) {
                         if (!lloyd.hasMech) {
-                            loadLevel3(); // Unarmored hit! 
+                            loadLevel3(); // Unarmored hit! Reset Level 3.
+                            return; // PREVENTS THE CRASH!
                         } else {
-                            // FIXED: The Laser breaks the Mech Suit!
                             lloyd.hasMech = false;
                             lloyd.color = "#00aaff";
                             lloyd.width = 50;
                             lloyd.height = 50;
-                            lloyd.y += 30; // Drop Lloyd down slightly so he doesn't float
+                            lloyd.y += 30; 
                             enemyLasers.splice(i, 1); 
                             continue;
                         }
@@ -252,7 +265,8 @@
                             gameWon = true; 
                         } else {
                             if (!lloyd.hasMech) {
-                                loadLevel3(); 
+                                loadLevel3();
+                                return; // PREVENTS THE CRASH!
                             } else {
                                 if (lloyd.dx > 0) lloyd.x = boss.x - lloyd.width;
                                 else if (lloyd.dx < 0) lloyd.x = boss.x + boss.w;
@@ -326,7 +340,7 @@
                     ctx.fillStyle = "#111"; 
                     ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
                     ctx.fillStyle = "red"; ctx.fillRect(boss.x + 10, boss.y + 20, 40, 20); 
-                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 50, 40, 30); // Adjusted cannon arm
+                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 50, 40, 30); 
                 }
             }
 
