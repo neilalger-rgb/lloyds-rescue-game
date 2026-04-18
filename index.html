@@ -33,6 +33,12 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
+        // The world is now 3 times bigger than the screen!
+        const levelWidth = 2400; 
+        
+        // The Camera follows Lloyd
+        const camera = { x: 0 };
+
         // Lloyd's Stats
         const lloyd = {
             x: 50,
@@ -40,7 +46,7 @@
             width: 50,
             height: 50,
             color: "#00aaff", 
-            speed: 5,        
+            speed: 6, // Sped him up a little for the big level!       
             dx: 0,           
             dy: 0,           
             gravity: 0.6,    
@@ -49,43 +55,20 @@
             hasRocketFist: false 
         };
 
-        // The ? Block
-        const questionBox = {
-            x: 250,
-            y: 180,
-            width: 50,
-            height: 50,
-            active: true
-        };
-
-        // The Giant Wall
-        const wall = {
-            x: 500,
-            y: 150,
-            width: 50,
-            height: 200,
-            active: true
-        };
-
-        // NEW: The Moving Laser Beam
-        const laser = {
-            x: 600,
-            y: 200,
-            width: 10,
-            height: 150,
-            active: true,
-            speed: 4,
-            direction: 1 // 1 makes it go down, -1 makes it go up
-        };
-
-        // NEW: The Hacking Computer
-        const computer = {
-            x: 720,
-            y: 300,
-            width: 40,
-            height: 50,
-            hacked: false
-        };
+        // Moving items further out into the big level
+        const questionBox = { x: 400, y: 180, width: 50, height: 50, active: true };
+        const wall = { x: 900, y: 150, width: 50, height: 200, active: true };
+        const laser = { x: 1300, y: 200, width: 10, height: 150, active: true, speed: 5, direction: 1 };
+        const computer = { x: 1600, y: 300, width: 40, height: 50, hacked: false };
+        
+        // NEW: The Cage and the Captured Robots!
+        const cage = { x: 2100, y: 200, width: 150, height: 150, active: true };
+        const friends = [
+            { x: 2120, y: 300, width: 40, height: 50, color: "#9900ff" }, // Purple friend
+            { x: 2180, y: 300, width: 40, height: 50, color: "#00ff99" }  // Mint friend
+        ];
+        
+        let gameWon = false;
 
         const keys = { right: false, left: false, up: false };
 
@@ -111,6 +94,8 @@
         }
 
         function update() {
+            if (gameWon) return; // Stop playing if we won!
+
             // Movement
             if (keys.right) { lloyd.dx = lloyd.speed; }
             else if (keys.left) { lloyd.dx = -lloyd.speed; }
@@ -128,60 +113,71 @@
                 lloyd.grounded = true;
             }
 
-            // Screen boundaries
+            // Screen boundaries (Now uses the giant levelWidth!)
             if (lloyd.x < 0) lloyd.x = 0;
-            if (lloyd.x + lloyd.width > canvas.width) lloyd.x = canvas.width - lloyd.width;
+            if (lloyd.x + lloyd.width > levelWidth) lloyd.x = levelWidth - lloyd.width;
 
-            // Touching the ? Block
+            // Camera Logic: Follow Lloyd!
+            camera.x = lloyd.x - (canvas.width / 2) + (lloyd.width / 2);
+            // Stop camera from showing outside the level
+            if (camera.x < 0) camera.x = 0;
+            if (camera.x > levelWidth - canvas.width) camera.x = levelWidth - canvas.width;
+
+            // Interactions
             if (questionBox.active && isTouching(lloyd, questionBox)) {
                 questionBox.active = false; 
                 lloyd.hasRocketFist = true; 
                 lloyd.color = "#ff7700";    
             }
 
-            // Touching the Giant Wall
             if (wall.active && isTouching(lloyd, wall)) {
                 if (lloyd.hasRocketFist) {
                     wall.active = false; 
                 } else {
-                    if (lloyd.dx > 0) {
-                        lloyd.x = wall.x - lloyd.width; 
-                    }
+                    if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
                 }
             }
 
-            // NEW: Move the Laser
             if (laser.active) {
                 laser.y += laser.speed * laser.direction;
-                // Bounce the laser up and down
-                if (laser.y + laser.height >= floorY) {
-                    laser.direction = -1; // Go up
-                } else if (laser.y <= 100) {
-                    laser.direction = 1;  // Go down
-                }
+                if (laser.y + laser.height >= floorY) laser.direction = -1; 
+                else if (laser.y <= 100) laser.direction = 1;  
             }
 
-            // NEW: Touching the Laser (ZAP!)
             if (laser.active && isTouching(lloyd, laser)) {
-                // Bounce Lloyd back to safety so he can try dodging again!
-                lloyd.x = 520;
+                // Bounce back before the laser!
+                lloyd.x = laser.x - 100;
             }
 
-            // NEW: Touching the Computer (HACK IT!)
             if (!computer.hacked && isTouching(lloyd, computer)) {
                 computer.hacked = true;
-                laser.active = false; // The laser disappears!
+                laser.active = false; 
+            }
+
+            // NEW: Touching the Cage!
+            if (cage.active && isTouching(lloyd, cage)) {
+                if (computer.hacked) {
+                    cage.active = false; // Break the cage!
+                    gameWon = true;      // YOU WIN!
+                } else {
+                    // Block him if he didn't hack the system yet
+                    if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
+                }
             }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Background & Floor
+            // EVERYTHING INSIDE HERE MOVES WITH THE CAMERA
+            ctx.save();
+            ctx.translate(-camera.x, 0);
+
+            // Draw long background & Floor
             ctx.fillStyle = "#333";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, levelWidth, canvas.height);
             ctx.fillStyle = "#555555";
-            ctx.fillRect(0, 350, 800, 50);
+            ctx.fillRect(0, 350, levelWidth, 50);
 
             // Draw ? Block
             if (questionBox.active) {
@@ -198,36 +194,55 @@
                 ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
             }
 
-            // NEW: Draw Laser
+            // Draw Laser
             if (laser.active) {
-                ctx.fillStyle = "#ff0000"; // Danger Red!
+                ctx.fillStyle = "#ff0000"; 
                 ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
             }
 
-            // NEW: Draw Computer
-            if (computer.hacked) {
-                ctx.fillStyle = "#00ff00"; // Safe Green!
-            } else {
-                ctx.fillStyle = "#005500"; // Dark Green
-            }
+            // Draw Computer
+            ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500";
             ctx.fillRect(computer.x, computer.y, computer.width, computer.height);
-            // Draw a little screen on the computer
             ctx.fillStyle = "black";
             ctx.fillRect(computer.x + 5, computer.y + 5, computer.width - 10, computer.height - 20);
+
+            // Draw Robot Friends
+            friends.forEach(friend => {
+                ctx.fillStyle = friend.color;
+                ctx.fillRect(friend.x, friend.y, friend.width, friend.height);
+            });
+
+            // Draw Cage
+            if (cage.active) {
+                ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; // See-through gray
+                ctx.fillRect(cage.x, cage.y, cage.width, cage.height);
+                // Draw cage bars
+                ctx.fillStyle = "#888";
+                for(let i = 0; i < 5; i++) {
+                    ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.height);
+                }
+            }
 
             // Draw Lloyd
             ctx.fillStyle = lloyd.color;
             ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
 
-            // Game Instructions Text
+            // END CAMERA DRAWING
+            ctx.restore(); 
+
+            // HUD / UI TEXT (Stays stuck to the screen!)
             ctx.fillStyle = "white";
             ctx.font = "20px Arial";
-            if (!lloyd.hasRocketFist) {
-                ctx.fillText("Hit the ? block to get the Rocket Fist!", 20, 30);
+            if (gameWon) {
+                ctx.fillStyle = "#00ff00";
+                ctx.font = "bold 40px Arial";
+                ctx.fillText("ROBOTS RESCUED! YOU WIN!", 100, 200);
+            } else if (!lloyd.hasRocketFist) {
+                ctx.fillText("Explore the lair! Find the ? block!", 20, 30);
             } else if (!computer.hacked) {
-                ctx.fillText("Smash the wall, dodge the laser, and hack the computer!", 20, 30);
+                ctx.fillText("Smash the wall, dodge the laser, hack the computer!", 20, 30);
             } else {
-                ctx.fillText("SYSTEM HACKED! The laser is off! You are a ninja!", 20, 30);
+                ctx.fillText("SYSTEM HACKED! Run right to rescue the robots!", 20, 30);
             }
         }
 
