@@ -16,7 +16,7 @@
             font-family: sans-serif;
         }
         canvas {
-            background-color: #333; /* Dark high-tech lair background */
+            background-color: #333; 
             border: 4px solid #555;
         }
     </style>
@@ -26,24 +26,101 @@
     <div>
         <h1>Lloyd's Lair Rescue</h1>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <p>Use the <b>Left/Right Arrows</b> to run, and the <b>Up Arrow</b> (or Spacebar) to jump!</p>
     </div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // Let's draw the floor of the lair
-        ctx.fillStyle = "#555555";
-        ctx.fillRect(0, 350, 800, 50);
+        // Lloyd's Stats!
+        const lloyd = {
+            x: 100,
+            y: 300,
+            width: 50,
+            height: 50,
+            color: "#00aaff",
+            speed: 5,        // How fast he runs
+            dx: 0,           // Left/Right movement speed
+            dy: 0,           // Up/Down movement speed (gravity)
+            gravity: 0.6,    // How fast he falls back down
+            jumpPower: -12,  // How high he jumps
+            grounded: false  // Is he touching the floor?
+        };
 
-        // Let's draw Lloyd (a blue square for now!)
-        ctx.fillStyle = "#00aaff";
-        ctx.fillRect(100, 300, 50, 50);
+        const keys = { right: false, left: false, up: false };
 
-        // Add some text so we know Lloyd is ready
-        ctx.fillStyle = "white";
-        ctx.font = "20px Arial";
-        ctx.fillText("Lloyd is ready for his rocket fist!", 250, 200);
+        // Listen for keyboard presses
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = true;
+            if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = true;
+            // Only let Lloyd jump if he is standing on the ground!
+            if ((event.code === "ArrowUp" || event.code === "Space") && lloyd.grounded) {
+                lloyd.dy = lloyd.jumpPower;
+                lloyd.grounded = false;
+            }
+        });
+
+        // Listen for when you let go of the keys
+        document.addEventListener("keyup", function(event) {
+            if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = false;
+            if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = false;
+        });
+
+        // The Brain of the game - updates the math
+        function update() {
+            // Move left/right
+            if (keys.right) { lloyd.dx = lloyd.speed; }
+            else if (keys.left) { lloyd.dx = -lloyd.speed; }
+            else { lloyd.dx = 0; }
+
+            // Apply gravity (pulls him down)
+            lloyd.dy += lloyd.gravity;
+
+            // Move Lloyd based on his speed and gravity
+            lloyd.x += lloyd.dx;
+            lloyd.y += lloyd.dy;
+
+            // Floor collision (Stop falling when he hits the floor)
+            const floorY = 350;
+            if (lloyd.y + lloyd.height >= floorY) {
+                lloyd.y = floorY - lloyd.height;
+                lloyd.dy = 0;
+                lloyd.grounded = true;
+            }
+
+            // Keep Lloyd from running off the screen!
+            if (lloyd.x < 0) lloyd.x = 0;
+            if (lloyd.x + lloyd.width > canvas.width) lloyd.x = canvas.width - lloyd.width;
+        }
+
+        // The Artist of the game - draws the pictures
+        function draw() {
+            // Clear the screen like an etch-a-sketch
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the dark lair background
+            ctx.fillStyle = "#333";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the floor
+            ctx.fillStyle = "#555555";
+            ctx.fillRect(0, 350, 800, 50);
+
+            // Draw Lloyd!
+            ctx.fillStyle = lloyd.color;
+            ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
+        }
+
+        // The Game Loop - runs 60 times a second!
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game!
+        gameLoop();
     </script>
 
 </body>
