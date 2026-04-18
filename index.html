@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lloyd's Lair Rescue</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #333; /* Dark high-tech lair background */
+            border: 4px solid #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div>
+        <h1>Lloyd's Lair Rescue</h1>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Let's draw the floor of the lair
+        ctx.fillStyle = "#555555";
+        ctx.fillRect(0, 350, 800, 50);
+
+        // Let's draw Lloyd (a blue square for now!)
+        ctx.fillStyle = "#00aaff";
+        ctx.fillRect(100, 300, 50, 50);
+
+        // Add some text so we know Lloyd is ready
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText("Lloyd is ready for his rocket fist!", 250, 200);
+    </script>
+
+</body>
+</html>
