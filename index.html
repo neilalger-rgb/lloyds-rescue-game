@@ -6,19 +6,11 @@
     <title>Lloyd's Lair Rescue</title>
     <style>
         body {
-            margin: 0;
-            background-color: #1a1a1a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-            font-family: sans-serif;
+            margin: 0; background-color: #1a1a1a; display: flex;
+            justify-content: center; align-items: center; height: 100vh;
+            color: white; font-family: sans-serif;
         }
-        canvas {
-            background-color: #333; 
-            border: 4px solid #555;
-        }
+        canvas { background-color: #333; border: 4px solid #555; }
     </style>
 </head>
 <body>
@@ -35,36 +27,29 @@
 
         let levelWidth = 2400; 
         let currentLevel = 1;
+        let gameWon = false;
         const camera = { x: 0 };
 
         // Lloyd's Stats
-        const lloyd = {
+        let lloyd = {
             x: 50, y: 300, width: 50, height: 50, color: "#00aaff", 
             speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false,
-            hasRocketFist: false, hasShield: false
+            hasRocketFist: false, hasShield: false, hasMech: false
         };
 
         const keys = { right: false, left: false, up: false };
 
         // Game Objects
-        let platforms = [];
-        let questionBox = {};
-        let wall = {};
-        let verticalLaser = {};
-        let computer = {};
-        let cage = {};
-        let friends = [];
-        let portal = {};
-        let spikeBalls = [];
-        let sideLasers = [];
+        let platforms = []; let questionBox = {}; let wall = {}; let verticalLaser = {}; 
+        let computer = {}; let cage = {}; let friends = []; let portal = {}; 
+        let spikeBalls = []; let sideLasers = []; 
+        let groundRobots = []; let birdRobots = []; let enemyLasers = []; let boss = {};
 
         // --- LEVEL 1 SETUP ---
         function loadLevel1() {
             currentLevel = 1;
-            lloyd.x = 50; lloyd.y = 300; lloyd.dx = 0; lloyd.dy = 0;
-            lloyd.color = "#00aaff"; lloyd.hasRocketFist = false; lloyd.hasShield = false;
-            
-            platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; // Solid floor
+            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
             questionBox = { x: 400, y: 180, w: 50, h: 50, active: true, type: "fist" };
             wall = { x: 900, y: 150, w: 50, h: 200, active: true };
             verticalLaser = { x: 1300, y: 200, w: 10, h: 150, active: true, speed: 5, dir: 1 };
@@ -72,54 +57,50 @@
             cage = { x: 2100, y: 200, w: 150, h: 150, active: true };
             friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#9900ff" }, { x: 2180, y: 300, w: 40, h: 50, color: "#00ff99" } ];
             portal = { x: 2300, y: 200, w: 60, h: 100, active: false };
-            spikeBalls = [];
-            sideLasers = [];
         }
 
         // --- LEVEL 2 SETUP ---
         function loadLevel2() {
             currentLevel = 2;
-            lloyd.x = 50; lloyd.y = 300; lloyd.dx = 0; lloyd.dy = 0;
-            lloyd.color = "#00aaff"; lloyd.hasRocketFist = false; lloyd.hasShield = false;
-            
-            // Floor with Pits!
-            platforms = [ 
-                {x: 0, y: 350, w: 600, h: 50}, 
-                {x: 800, y: 350, w: 600, h: 50},  // Pit from 600 to 800
-                {x: 1600, y: 350, w: 800, h: 50}  // Pit from 1400 to 1600
-            ];
-            
+            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            platforms = [ {x: 0, y: 350, w: 600, h: 50}, {x: 800, y: 350, w: 600, h: 50}, {x: 1600, y: 350, w: 800, h: 50} ];
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "shield" };
-            
-            // Clear Level 1 stuff
-            wall = { active: false };
-            verticalLaser = { active: false };
-            computer = { active: false };
-            cage = { active: false };
-            friends = [];
-            portal = { active: false };
-
-            // Level 2 Hazards
-            spikeBalls = [
-                {x: 700, y: -100, r: 20, speed: 4}, // Falling over pit 1
-                {x: 1200, y: -50, r: 20, speed: 5}, // Falling in middle
-                {x: 1500, y: -200, r: 20, speed: 6} // Falling over pit 2
-            ];
-            
-            sideLasers = [
-                {x: 900, y: 320, w: 40, h: 10, speed: 4, dir: 1, minX: 850, maxX: 1300}
-            ];
+            spikeBalls = [ {x: 700, y: -100, r: 20, speed: 4}, {x: 1200, y: -50, r: 20, speed: 5}, {x: 1500, y: -200, r: 20, speed: 6} ];
+            sideLasers = [ {x: 900, y: 320, w: 40, h: 10, speed: 4, dir: 1, minX: 850, maxX: 1300} ];
+            portal = { x: 2300, y: 200, w: 60, h: 100, active: true }; // Portal ready at the end!
         }
 
-        // Start the game at Level 1
+        // --- LEVEL 3 SETUP ---
+        function loadLevel3() {
+            currentLevel = 3;
+            lloyd = { x: 50, y: 300, width: 50, height: 50, color: "#00aaff", speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false };
+            platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
+            questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "mech" };
+            enemyLasers = [];
+            
+            // Evil Laser Robots
+            groundRobots = [
+                {x: 800, y: 300, w: 50, h: 50, timer: 0},
+                {x: 1300, y: 300, w: 50, h: 50, timer: 30}
+            ];
+            
+            // Swooping Bird Robots
+            birdRobots = [
+                {x: 1000, y: 100, w: 60, h: 30, timer: 0, flySpeed: 2, dir: 1},
+                {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1}
+            ];
+
+            // The Final Boss!
+            boss = { x: 2100, y: 150, w: 150, h: 200, active: true, timer: 0, hp: 1 };
+        }
+
         loadLevel1();
 
         document.addEventListener("keydown", function(event) {
             if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = true;
             if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = true;
             if ((event.code === "ArrowUp" || event.code === "Space") && lloyd.grounded) {
-                lloyd.dy = lloyd.jumpPower;
-                lloyd.grounded = false;
+                lloyd.dy = lloyd.jumpPower; lloyd.grounded = false;
             }
         });
         document.addEventListener("keyup", function(event) {
@@ -127,42 +108,32 @@
             if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = false;
         });
 
-        function isTouching(rect1, rect2) {
-            return rect1.x < rect2.x + (rect2.width || rect2.w) &&
-                   rect1.x + lloyd.width > rect2.x &&
-                   rect1.y < rect2.y + (rect2.height || rect2.h) &&
-                   rect1.y + lloyd.height > rect2.y;
+        function isTouching(r1, r2) {
+            return r1.x < r2.x + (r2.width || r2.w) && r1.x + lloyd.width > r2.x &&
+                   r1.y < r2.y + (r2.height || r2.h) && r1.y + lloyd.height > r2.y;
         }
 
         function update() {
+            if (gameWon) return;
+
             // Movement
             if (keys.right) lloyd.dx = lloyd.speed; 
             else if (keys.left) lloyd.dx = -lloyd.speed; 
             else lloyd.dx = 0; 
 
             lloyd.dy += lloyd.gravity;
-            lloyd.x += lloyd.dx;
-            lloyd.y += lloyd.dy;
+            lloyd.x += lloyd.dx; lloyd.y += lloyd.dy;
 
             // Floor & Pit Logic
             lloyd.grounded = false;
-            let onFloor = false;
             for (let plat of platforms) {
                 if (lloyd.x < plat.x + plat.w && lloyd.x + lloyd.width > plat.x &&
                     lloyd.y + lloyd.height >= plat.y && lloyd.y + lloyd.height <= plat.y + 20 && lloyd.dy >= 0) {
-                    lloyd.y = plat.y - lloyd.height;
-                    lloyd.dy = 0;
-                    lloyd.grounded = true;
-                    onFloor = true;
+                    lloyd.y = plat.y - lloyd.height; lloyd.dy = 0; lloyd.grounded = true;
                 }
             }
 
-            // Did Lloyd fall in a pit?
-            if (lloyd.y > 600) {
-                if (currentLevel === 1) loadLevel1();
-                if (currentLevel === 2) loadLevel2();
-            }
-
+            if (lloyd.y > 600) { currentLevel === 1 ? loadLevel1() : loadLevel2(); }
             if (lloyd.x < 0) lloyd.x = 0;
             if (lloyd.x + lloyd.width > levelWidth) lloyd.x = levelWidth - lloyd.width;
 
@@ -174,133 +145,176 @@
             // ? Block Logic
             if (questionBox.active && isTouching(lloyd, questionBox)) {
                 questionBox.active = false; 
-                if (questionBox.type === "fist") {
-                    lloyd.hasRocketFist = true; lloyd.color = "#ff7700"; 
-                } else if (questionBox.type === "shield") {
-                    lloyd.hasShield = true; lloyd.color = "#cccccc"; // Silver Shield!
+                if (questionBox.type === "fist") { lloyd.hasRocketFist = true; lloyd.color = "#ff7700"; }
+                if (questionBox.type === "shield") { lloyd.hasShield = true; lloyd.color = "#cccccc"; }
+                if (questionBox.type === "mech") { 
+                    lloyd.hasMech = true; lloyd.color = "#555555"; // Dark Iron Mech!
+                    lloyd.width = 80; lloyd.height = 80; lloyd.y -= 30; // He grows huge!
                 }
             }
 
             // Level 1 Interactions
             if (currentLevel === 1) {
                 if (wall.active && isTouching(lloyd, wall)) {
-                    if (lloyd.hasRocketFist) wall.active = false; 
-                    else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
+                    if (lloyd.hasRocketFist) wall.active = false; else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
                 }
                 if (verticalLaser.active) {
                     verticalLaser.y += verticalLaser.speed * verticalLaser.dir;
-                    if (verticalLaser.y + verticalLaser.h >= 350) verticalLaser.dir = -1; 
-                    else if (verticalLaser.y <= 100) verticalLaser.dir = 1;  
+                    if (verticalLaser.y + verticalLaser.h >= 350) verticalLaser.dir = -1; else if (verticalLaser.y <= 100) verticalLaser.dir = 1;  
                     if (isTouching(lloyd, verticalLaser)) lloyd.x = verticalLaser.x - 100;
                 }
-                if (!computer.hacked && isTouching(lloyd, computer)) {
-                    computer.hacked = true; verticalLaser.active = false; 
-                }
+                if (!computer.hacked && isTouching(lloyd, computer)) { computer.hacked = true; verticalLaser.active = false; }
                 if (cage.active && isTouching(lloyd, cage)) {
-                    if (computer.hacked) { cage.active = false; portal.active = true; } 
-                    else if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
+                    if (computer.hacked) { cage.active = false; portal.active = true; } else if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
                 }
-                // Warp to Level 2!
-                if (portal.active && isTouching(lloyd, portal)) {
-                    loadLevel2();
-                }
+                if (portal.active && isTouching(lloyd, portal)) loadLevel2();
             }
 
             // Level 2 Interactions
             if (currentLevel === 2) {
-                // Spiky Balls
                 for (let sb of spikeBalls) {
                     sb.y += sb.speed;
-                    if (sb.y > 450) sb.y = -50; // Respawn at top
-                    
-                    // Simple circle collision
+                    if (sb.y > 450) sb.y = -50; 
                     let box = {x: sb.x - sb.r, y: sb.y - sb.r, w: sb.r*2, h: sb.r*2};
-                    if (isTouching(lloyd, box)) {
-                        if (!lloyd.hasShield) {
-                            loadLevel1(); // BOUNCE ALL THE WAY TO LEVEL 1!
-                        } else {
-                            // Shield protects, but bounces him back a bit
-                            lloyd.x -= 10;
-                        }
-                    }
+                    if (isTouching(lloyd, box)) { lloyd.hasShield ? lloyd.x -= 10 : loadLevel1(); }
                 }
-
-                // Side-scrolling Lasers
                 for (let sl of sideLasers) {
                     sl.x += sl.speed * sl.dir;
                     if (sl.x > sl.maxX || sl.x < sl.minX) sl.dir *= -1;
-                    if (isTouching(lloyd, sl)) lloyd.x = sl.minX - 60; // Knocked back by laser
+                    if (isTouching(lloyd, sl)) lloyd.x = sl.minX - 60; 
+                }
+                if (portal.active && isTouching(lloyd, portal)) loadLevel3();
+            }
+
+            // Level 3 Interactions
+            if (currentLevel === 3) {
+                // Ground Robots Shooting Lasers
+                for (let gr of groundRobots) {
+                    gr.timer++;
+                    if (gr.timer > 100) { // Shoot left!
+                        enemyLasers.push({x: gr.x, y: gr.y + 20, w: 30, h: 5, vx: -5, vy: 0});
+                        gr.timer = 0;
+                    }
+                    if (isTouching(lloyd, gr)) loadLevel3(); // Zap! Back to start of Lvl 3
+                }
+
+                // Bird Robots Swooping and Bombing
+                for (let br of birdRobots) {
+                    br.x += br.flySpeed * br.dir;
+                    if (br.x > 1800 || br.x < 800) br.dir *= -1; // Fly back and forth
+                    br.timer++;
+                    if (br.timer > 80) { // Drop laser bomb!
+                        enemyLasers.push({x: br.x + 25, y: br.y + 30, w: 10, h: 20, vx: 0, vy: 4});
+                        br.timer = 0;
+                    }
+                    if (isTouching(lloyd, br)) loadLevel3(); 
+                }
+
+                // Update Enemy Lasers
+                for (let i = enemyLasers.length - 1; i >= 0; i--) {
+                    let l = enemyLasers[i];
+                    l.x += l.vx; l.y += l.vy;
+                    if (isTouching(lloyd, l)) loadLevel3(); // Hit by laser!
+                    // Remove if off screen or hits floor
+                    if (l.y > 350 || l.x < camera.x || l.x > camera.x + 800) enemyLasers.splice(i, 1);
+                }
+
+                // Boss Logic!
+                if (boss.active) {
+                    boss.timer++;
+                    if (boss.timer > 60) { // Boss shoots massive laser!
+                        enemyLasers.push({x: boss.x - 40, y: boss.y + 100, w: 40, h: 10, vx: -6, vy: 0});
+                        boss.timer = 0;
+                    }
+
+                    if (isTouching(lloyd, boss)) {
+                        // Check if Lloyd landed ON TOP of the boss!
+                        if (lloyd.dy > 0 && lloyd.y + lloyd.height < boss.y + 40) {
+                            boss.active = false; // SMASH THE BOSS!
+                            lloyd.dy = -15; // Mega bounce
+                            gameWon = true; // YOU BEAT THE GAME!
+                        } else {
+                            // Touched the boss's side... ouch!
+                            loadLevel3();
+                        }
+                    }
                 }
             }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(-camera.x, 0);
+            ctx.save(); ctx.translate(-camera.x, 0);
 
-            // Background & Platforms
-            ctx.fillStyle = currentLevel === 1 ? "#333" : "#221133"; // Lvl 2 is dark purple!
+            // Backgrounds
+            if (currentLevel === 1) ctx.fillStyle = "#333";
+            if (currentLevel === 2) ctx.fillStyle = "#221133";
+            if (currentLevel === 3) ctx.fillStyle = "#441111"; // Evil Red base!
             ctx.fillRect(0, 0, levelWidth, canvas.height);
             
             ctx.fillStyle = "#555555";
-            for (let plat of platforms) {
-                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-            }
+            for (let plat of platforms) ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
-            // Draw ? Block
+            // ? Block
             if (questionBox.active) {
-                ctx.fillStyle = "#ffcc00"; 
-                ctx.fillRect(questionBox.x, questionBox.y, questionBox.w, questionBox.h);
-                ctx.fillStyle = "black"; ctx.font = "bold 30px Arial";
-                ctx.fillText("?", questionBox.x + 15, questionBox.y + 35);
+                ctx.fillStyle = "#ffcc00"; ctx.fillRect(questionBox.x, questionBox.y, questionBox.w, questionBox.h);
+                ctx.fillStyle = "black"; ctx.font = "bold 30px Arial"; ctx.fillText("?", questionBox.x + 15, questionBox.y + 35);
             }
 
-            // Draw Level 1 Stuff
+            // Lvl 1 & 2 objects
             if (currentLevel === 1) {
                 if (wall.active) { ctx.fillStyle = "#aa0000"; ctx.fillRect(wall.x, wall.y, wall.w, wall.h); }
                 if (verticalLaser.active) { ctx.fillStyle = "#ff0000"; ctx.fillRect(verticalLaser.x, verticalLaser.y, verticalLaser.w, verticalLaser.h); }
-                ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500";
-                ctx.fillRect(computer.x, computer.y, computer.w, computer.h);
-                ctx.fillStyle = "black"; ctx.fillRect(computer.x + 5, computer.y + 5, computer.w - 10, computer.h - 20);
-                
-                friends.forEach(friend => { ctx.fillStyle = friend.color; ctx.fillRect(friend.x, friend.y, friend.w, friend.h); });
-                
-                if (cage.active) {
-                    ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; ctx.fillRect(cage.x, cage.y, cage.w, cage.h);
-                    ctx.fillStyle = "#888"; for(let i = 0; i < 5; i++) ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.h);
-                }
-                
-                if (portal.active) {
-                    ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
-                    ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.fillText("PORTAL", portal.x - 2, portal.y - 10);
-                }
+                ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500"; ctx.fillRect(computer.x, computer.y, computer.w, computer.h);
+                friends.forEach(f => { ctx.fillStyle = f.color; ctx.fillRect(f.x, f.y, f.w, f.h); });
+                if (cage.active) { ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; ctx.fillRect(cage.x, cage.y, cage.w, cage.h); }
+                if (portal.active) { ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h); }
             }
-
-            // Draw Level 2 Stuff
             if (currentLevel === 2) {
-                // Spiky Balls
                 ctx.fillStyle = "gray";
                 for (let sb of spikeBalls) {
-                    ctx.beginPath();
-                    ctx.arc(sb.x, sb.y, sb.r, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Draw spikes (just a darker dot for now)
-                    ctx.fillStyle = "black";
-                    ctx.fillRect(sb.x - 2, sb.y - 2, 4, 4);
-                    ctx.fillStyle = "gray"; // reset
+                    ctx.beginPath(); ctx.arc(sb.x, sb.y, sb.r, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = "black"; ctx.fillRect(sb.x - 2, sb.y - 2, 4, 4); ctx.fillStyle = "gray";
                 }
+                ctx.fillStyle = "#ff00ff"; for (let sl of sideLasers) ctx.fillRect(sl.x, sl.y, sl.w, sl.h);
+                if (portal.active) { ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h); }
+            }
 
-                // Side Lasers
-                ctx.fillStyle = "#ff00ff"; // Pink lasers!
-                for (let sl of sideLasers) {
-                    ctx.fillRect(sl.x, sl.y, sl.w, sl.h);
+            // Level 3 Enemies & Boss!
+            if (currentLevel === 3) {
+                // Ground Robots
+                ctx.fillStyle = "#ff4444";
+                for (let gr of groundRobots) {
+                    ctx.fillRect(gr.x, gr.y, gr.w, gr.h);
+                    ctx.fillStyle = "cyan"; ctx.fillRect(gr.x - 5, gr.y + 15, 10, 10); // Laser eye
+                    ctx.fillStyle = "#ff4444";
+                }
+                // Bird Robots
+                ctx.fillStyle = "#99ccff";
+                for (let br of birdRobots) {
+                    ctx.fillRect(br.x, br.y, br.w, br.h);
+                    ctx.fillStyle = "white"; ctx.fillRect(br.x + 20, br.y + 10, 20, 10); // Wings
+                    ctx.fillStyle = "#99ccff";
+                }
+                // Enemy Lasers
+                ctx.fillStyle = "red";
+                for (let l of enemyLasers) ctx.fillRect(l.x, l.y, l.w, l.h);
+
+                // FINAL BOSS
+                if (boss.active) {
+                    ctx.fillStyle = "#111"; // Pitch black armor
+                    ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+                    ctx.fillStyle = "red"; ctx.fillRect(boss.x + 10, boss.y + 20, 40, 20); // Evil Eyes
+                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 90, 40, 30); // Laser Cannon Arm
                 }
             }
 
-            // Draw Lloyd
-            ctx.fillStyle = lloyd.color;
-            ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
+            // Draw Lloyd!
+            ctx.fillStyle = lloyd.color; ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
+            // Draw Mech Details!
+            if (lloyd.hasMech) {
+                ctx.fillStyle = "cyan"; ctx.fillRect(lloyd.x + 20, lloyd.y + 20, 40, 20); // Mech Visor
+            }
 
             ctx.restore(); 
 
@@ -308,15 +322,18 @@
             ctx.fillStyle = "white"; ctx.font = "20px Arial";
             ctx.fillText("Level " + currentLevel, 20, 30);
             
-            if (currentLevel === 2 && !lloyd.hasShield) {
-                ctx.fillText("Get the ? block for a Spike Shield, or spikes send you to Lvl 1!", 100, 30);
+            if (gameWon) {
+                ctx.fillStyle = "#00ff00"; ctx.font = "bold 40px Arial";
+                ctx.fillText("BOSS DEFEATED! YOU WIN THE GAME!", 50, 200);
+            } else if (currentLevel === 3 && !lloyd.hasMech) {
+                ctx.fillText("Dodge the robots! Get the Mech Suit from the ? block!", 100, 30);
+            } else if (currentLevel === 3 && boss.active) {
+                ctx.fillText("MECH SUIT ACTIVE! Jump on the Boss's head!", 100, 30);
             }
         }
 
         function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
+            update(); draw(); requestAnimationFrame(gameLoop);
         }
 
         gameLoop();
