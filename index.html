@@ -57,6 +57,7 @@
             cage = { x: 2100, y: 200, w: 150, h: 150, active: true };
             friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#9900ff" }, { x: 2180, y: 300, w: 40, h: 50, color: "#00ff99" } ];
             portal = { x: 2300, y: 200, w: 60, h: 100, active: false };
+            groundRobots = []; birdRobots = []; enemyLasers = []; boss = { active: false };
         }
 
         // --- LEVEL 2 SETUP ---
@@ -67,7 +68,13 @@
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "shield" };
             spikeBalls = [ {x: 700, y: -100, r: 20, speed: 4}, {x: 1200, y: -50, r: 20, speed: 5}, {x: 1500, y: -200, r: 20, speed: 6} ];
             sideLasers = [ {x: 900, y: 320, w: 40, h: 10, speed: 4, dir: 1, minX: 850, maxX: 1300} ];
-            portal = { x: 2300, y: 200, w: 60, h: 100, active: true }; // Portal ready at the end!
+            
+            // NEW: Added Level 2 Rescue Setup!
+            cage = { x: 2100, y: 200, w: 150, h: 150, active: true };
+            friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#ff8800" }, { x: 2180, y: 300, w: 40, h: 50, color: "#ff0088" } ]; // Orange and Pink bots!
+            portal = { x: 2300, y: 200, w: 60, h: 100, active: false }; 
+            
+            wall = { active: false }; verticalLaser = { active: false }; computer = { active: false };
         }
 
         // --- LEVEL 3 SETUP ---
@@ -78,20 +85,20 @@
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "mech" };
             enemyLasers = [];
             
-            // Evil Laser Robots
             groundRobots = [
-                {x: 800, y: 300, w: 50, h: 50, timer: 0},
-                {x: 1300, y: 300, w: 50, h: 50, timer: 30}
+                {x: 800, y: 300, w: 50, h: 50, timer: 0, active: true},
+                {x: 1300, y: 300, w: 50, h: 50, timer: 30, active: true}
             ];
             
-            // Swooping Bird Robots
             birdRobots = [
-                {x: 1000, y: 100, w: 60, h: 30, timer: 0, flySpeed: 2, dir: 1},
-                {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1}
+                {x: 1000, y: 100, w: 60, h: 30, timer: 0, flySpeed: 2, dir: 1, active: true},
+                {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1, active: true}
             ];
 
-            // The Final Boss!
             boss = { x: 2100, y: 150, w: 150, h: 200, active: true, timer: 0, hp: 1 };
+            
+            // Clear out Lvl 1 and 2 objects
+            spikeBalls = []; sideLasers = []; cage = { active: false }; friends = []; portal = { active: false };
         }
 
         loadLevel1();
@@ -148,12 +155,24 @@
                 if (questionBox.type === "fist") { lloyd.hasRocketFist = true; lloyd.color = "#ff7700"; }
                 if (questionBox.type === "shield") { lloyd.hasShield = true; lloyd.color = "#cccccc"; }
                 if (questionBox.type === "mech") { 
-                    lloyd.hasMech = true; lloyd.color = "#555555"; // Dark Iron Mech!
-                    lloyd.width = 80; lloyd.height = 80; lloyd.y -= 30; // He grows huge!
+                    lloyd.hasMech = true; lloyd.color = "#555555"; 
+                    lloyd.width = 80; lloyd.height = 80; lloyd.y -= 30; // Grows huge!
                 }
             }
 
-            // Level 1 Interactions
+            // Universal Interactions (Cage & Portal)
+            if (cage.active && isTouching(lloyd, cage)) {
+                if (currentLevel === 1 && computer.hacked) { cage.active = false; portal.active = true; } 
+                else if (currentLevel === 1 && lloyd.dx > 0) { lloyd.x = cage.x - lloyd.width; }
+                else if (currentLevel === 2) { 
+                    cage.active = false; portal.active = true; // In Level 2, just touching it smashes it!
+                }
+            }
+            if (portal.active && isTouching(lloyd, portal)) {
+                currentLevel === 1 ? loadLevel2() : loadLevel3();
+            }
+
+            // Level 1 Specific
             if (currentLevel === 1) {
                 if (wall.active && isTouching(lloyd, wall)) {
                     if (lloyd.hasRocketFist) wall.active = false; else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
@@ -164,13 +183,9 @@
                     if (isTouching(lloyd, verticalLaser)) lloyd.x = verticalLaser.x - 100;
                 }
                 if (!computer.hacked && isTouching(lloyd, computer)) { computer.hacked = true; verticalLaser.active = false; }
-                if (cage.active && isTouching(lloyd, cage)) {
-                    if (computer.hacked) { cage.active = false; portal.active = true; } else if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
-                }
-                if (portal.active && isTouching(lloyd, portal)) loadLevel2();
             }
 
-            // Level 2 Interactions
+            // Level 2 Specific
             if (currentLevel === 2) {
                 for (let sb of spikeBalls) {
                     sb.y += sb.speed;
@@ -183,59 +198,78 @@
                     if (sl.x > sl.maxX || sl.x < sl.minX) sl.dir *= -1;
                     if (isTouching(lloyd, sl)) lloyd.x = sl.minX - 60; 
                 }
-                if (portal.active && isTouching(lloyd, portal)) loadLevel3();
             }
 
-            // Level 3 Interactions
+            // Level 3 Specific (MECH BUG FIX!)
             if (currentLevel === 3) {
-                // Ground Robots Shooting Lasers
+                // Ground Robots
                 for (let gr of groundRobots) {
+                    if (!gr.active) continue;
                     gr.timer++;
-                    if (gr.timer > 100) { // Shoot left!
+                    if (gr.timer > 100) { 
                         enemyLasers.push({x: gr.x, y: gr.y + 20, w: 30, h: 5, vx: -5, vy: 0});
                         gr.timer = 0;
                     }
-                    if (isTouching(lloyd, gr)) loadLevel3(); // Zap! Back to start of Lvl 3
+                    if (isTouching(lloyd, gr)) {
+                        if (!lloyd.hasMech) loadLevel3(); 
+                        else gr.active = false; // The Mech CRUSHES the robot!
+                    }
                 }
 
-                // Bird Robots Swooping and Bombing
+                // Bird Robots 
                 for (let br of birdRobots) {
+                    if (!br.active) continue;
                     br.x += br.flySpeed * br.dir;
-                    if (br.x > 1800 || br.x < 800) br.dir *= -1; // Fly back and forth
+                    if (br.x > 1800 || br.x < 800) br.dir *= -1; 
                     br.timer++;
-                    if (br.timer > 80) { // Drop laser bomb!
+                    if (br.timer > 80) { 
                         enemyLasers.push({x: br.x + 25, y: br.y + 30, w: 10, h: 20, vx: 0, vy: 4});
                         br.timer = 0;
                     }
-                    if (isTouching(lloyd, br)) loadLevel3(); 
+                    if (isTouching(lloyd, br)) {
+                        if (!lloyd.hasMech) loadLevel3();
+                        else br.active = false; // The Mech SWATS the bird!
+                    }
                 }
 
-                // Update Enemy Lasers
+                // Enemy Lasers 
                 for (let i = enemyLasers.length - 1; i >= 0; i--) {
                     let l = enemyLasers[i];
                     l.x += l.vx; l.y += l.vy;
-                    if (isTouching(lloyd, l)) loadLevel3(); // Hit by laser!
+                    
+                    if (isTouching(lloyd, l)) {
+                        if (!lloyd.hasMech) {
+                            loadLevel3(); // Unarmored hit! Back to start.
+                        } else {
+                            enemyLasers.splice(i, 1); // Armor absorbs the laser!
+                            continue;
+                        }
+                    }
                     // Remove if off screen or hits floor
                     if (l.y > 350 || l.x < camera.x || l.x > camera.x + 800) enemyLasers.splice(i, 1);
                 }
 
-                // Boss Logic!
+                // Final Boss 
                 if (boss.active) {
                     boss.timer++;
-                    if (boss.timer > 60) { // Boss shoots massive laser!
+                    if (boss.timer > 60) { 
                         enemyLasers.push({x: boss.x - 40, y: boss.y + 100, w: 40, h: 10, vx: -6, vy: 0});
                         boss.timer = 0;
                     }
 
                     if (isTouching(lloyd, boss)) {
-                        // Check if Lloyd landed ON TOP of the boss!
                         if (lloyd.dy > 0 && lloyd.y + lloyd.height < boss.y + 40) {
-                            boss.active = false; // SMASH THE BOSS!
-                            lloyd.dy = -15; // Mega bounce
-                            gameWon = true; // YOU BEAT THE GAME!
+                            boss.active = false; 
+                            lloyd.dy = -15; 
+                            gameWon = true; 
                         } else {
-                            // Touched the boss's side... ouch!
-                            loadLevel3();
+                            if (!lloyd.hasMech) {
+                                loadLevel3(); // No mech? Zapped by Boss!
+                            } else {
+                                // Mech acts as a solid wall against the Boss!
+                                if (lloyd.dx > 0) lloyd.x = boss.x - lloyd.width;
+                                else if (lloyd.dx < 0) lloyd.x = boss.x + boss.w;
+                            }
                         }
                     }
                 }
@@ -249,7 +283,7 @@
             // Backgrounds
             if (currentLevel === 1) ctx.fillStyle = "#333";
             if (currentLevel === 2) ctx.fillStyle = "#221133";
-            if (currentLevel === 3) ctx.fillStyle = "#441111"; // Evil Red base!
+            if (currentLevel === 3) ctx.fillStyle = "#441111"; 
             ctx.fillRect(0, 0, levelWidth, canvas.height);
             
             ctx.fillStyle = "#555555";
@@ -261,14 +295,22 @@
                 ctx.fillStyle = "black"; ctx.font = "bold 30px Arial"; ctx.fillText("?", questionBox.x + 15, questionBox.y + 35);
             }
 
-            // Lvl 1 & 2 objects
+            // Universal Items (Cage, Friends, Portal)
+            friends.forEach(f => { ctx.fillStyle = f.color; ctx.fillRect(f.x, f.y, f.w, f.h); });
+            if (cage.active) { 
+                ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; ctx.fillRect(cage.x, cage.y, cage.w, cage.h); 
+                ctx.fillStyle = "#888"; for(let i = 0; i < 5; i++) ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.h);
+            }
+            if (portal.active) { 
+                ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h); 
+                ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.fillText("PORTAL", portal.x - 2, portal.y - 10);
+            }
+
+            // Lvl 1 & 2 Objects
             if (currentLevel === 1) {
                 if (wall.active) { ctx.fillStyle = "#aa0000"; ctx.fillRect(wall.x, wall.y, wall.w, wall.h); }
                 if (verticalLaser.active) { ctx.fillStyle = "#ff0000"; ctx.fillRect(verticalLaser.x, verticalLaser.y, verticalLaser.w, verticalLaser.h); }
                 ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500"; ctx.fillRect(computer.x, computer.y, computer.w, computer.h);
-                friends.forEach(f => { ctx.fillStyle = f.color; ctx.fillRect(f.x, f.y, f.w, f.h); });
-                if (cage.active) { ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; ctx.fillRect(cage.x, cage.y, cage.w, cage.h); }
-                if (portal.active) { ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h); }
             }
             if (currentLevel === 2) {
                 ctx.fillStyle = "gray";
@@ -277,43 +319,39 @@
                     ctx.fillStyle = "black"; ctx.fillRect(sb.x - 2, sb.y - 2, 4, 4); ctx.fillStyle = "gray";
                 }
                 ctx.fillStyle = "#ff00ff"; for (let sl of sideLasers) ctx.fillRect(sl.x, sl.y, sl.w, sl.h);
-                if (portal.active) { ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h); }
             }
 
-            // Level 3 Enemies & Boss!
+            // Level 3 Enemies
             if (currentLevel === 3) {
-                // Ground Robots
                 ctx.fillStyle = "#ff4444";
                 for (let gr of groundRobots) {
+                    if (!gr.active) continue;
                     ctx.fillRect(gr.x, gr.y, gr.w, gr.h);
-                    ctx.fillStyle = "cyan"; ctx.fillRect(gr.x - 5, gr.y + 15, 10, 10); // Laser eye
+                    ctx.fillStyle = "cyan"; ctx.fillRect(gr.x - 5, gr.y + 15, 10, 10); 
                     ctx.fillStyle = "#ff4444";
                 }
-                // Bird Robots
                 ctx.fillStyle = "#99ccff";
                 for (let br of birdRobots) {
+                    if (!br.active) continue;
                     ctx.fillRect(br.x, br.y, br.w, br.h);
-                    ctx.fillStyle = "white"; ctx.fillRect(br.x + 20, br.y + 10, 20, 10); // Wings
+                    ctx.fillStyle = "white"; ctx.fillRect(br.x + 20, br.y + 10, 20, 10); 
                     ctx.fillStyle = "#99ccff";
                 }
-                // Enemy Lasers
                 ctx.fillStyle = "red";
                 for (let l of enemyLasers) ctx.fillRect(l.x, l.y, l.w, l.h);
 
-                // FINAL BOSS
                 if (boss.active) {
-                    ctx.fillStyle = "#111"; // Pitch black armor
+                    ctx.fillStyle = "#111"; 
                     ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
-                    ctx.fillStyle = "red"; ctx.fillRect(boss.x + 10, boss.y + 20, 40, 20); // Evil Eyes
-                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 90, 40, 30); // Laser Cannon Arm
+                    ctx.fillStyle = "red"; ctx.fillRect(boss.x + 10, boss.y + 20, 40, 20); 
+                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 90, 40, 30); 
                 }
             }
 
             // Draw Lloyd!
             ctx.fillStyle = lloyd.color; ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
-            // Draw Mech Details!
             if (lloyd.hasMech) {
-                ctx.fillStyle = "cyan"; ctx.fillRect(lloyd.x + 20, lloyd.y + 20, 40, 20); // Mech Visor
+                ctx.fillStyle = "cyan"; ctx.fillRect(lloyd.x + 20, lloyd.y + 20, lloyd.width - 40, 20); 
             }
 
             ctx.restore(); 
@@ -328,7 +366,7 @@
             } else if (currentLevel === 3 && !lloyd.hasMech) {
                 ctx.fillText("Dodge the robots! Get the Mech Suit from the ? block!", 100, 30);
             } else if (currentLevel === 3 && boss.active) {
-                ctx.fillText("MECH SUIT ACTIVE! Jump on the Boss's head!", 100, 30);
+                ctx.fillText("MECH SUIT ACTIVE! Crush robots and jump on the Boss!", 100, 30);
             }
         }
 
