@@ -8,32 +8,80 @@
         body {
             margin: 0; background-color: #1a1a1a; display: flex;
             justify-content: center; align-items: center; height: 100vh;
-            color: white; font-family: sans-serif;
+            color: white; font-family: sans-serif; overflow: hidden;
         }
-        canvas { background-color: #333; border: 4px solid #555; }
+        canvas { background-color: #333; border: 4px solid #555; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div>
-        <h1>Lloyd's Lair Rescue</h1>
+        <h1 style="text-align: center;">Lloyd's Lair Rescue</h1>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
-        <p>Use the <b>Left/Right Arrows</b> to run, and the <b>Up Arrow</b> to jump!</p>
+        <p style="text-align: center;"><b>Left/Right Arrows</b> to run | <b>Up Arrow</b> to jump | <b>Enter</b> to restart</p>
     </div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
+        // --- AUDIO SYSTEM (8-Bit Synthesizer!) ---
+        let audioCtx;
+        let musicInterval;
+        let noteIndex = 0;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playSound(type) {
+            if(type === 'jump') { playTone(300, 'square', 0.1, 0.05); setTimeout(()=>playTone(450, 'square', 0.1, 0.05), 50); }
+            if(type === 'powerup') { playTone(400, 'sine', 0.1); setTimeout(()=>playTone(600, 'sine', 0.1), 100); setTimeout(()=>playTone(800, 'sine', 0.2), 200); }
+            if(type === 'laser') { playTone(800, 'sawtooth', 0.1, 0.05); setTimeout(()=>playTone(400, 'sawtooth', 0.1, 0.05), 50); }
+            if(type === 'smash') { playTone(100, 'square', 0.3, 0.2); setTimeout(()=>playTone(50, 'sawtooth', 0.4, 0.2), 100); }
+            if(type === 'hurt') { playTone(150, 'sawtooth', 0.2, 0.1); }
+        }
+
+        function startMusic(level) {
+            if (musicInterval) clearInterval(musicInterval);
+            let notes = [];
+            // Rad Soundtracks for each level!
+            if (level === 1) notes = [261, 329, 392, 523]; // Cheerful Explorer (C Major)
+            if (level === 2) notes = [293, 349, 440, 587]; // Spooky Danger (D Minor)
+            if (level === 3) notes = [150, 160, 150, 180, 150, 200]; // Heavy Boss Bass!
+            
+            noteIndex = 0;
+            musicInterval = setInterval(() => {
+                if (!audioCtx) return;
+                playTone(notes[noteIndex % notes.length], 'square', 0.2, 0.03);
+                noteIndex++;
+            }, 250);
+        }
+
+        // --- GAME VARIABLES ---
+        let gameState = "START"; // START, PLAYING, WON
         let levelWidth = 2400; 
         let currentLevel = 1;
-        let gameWon = false;
         const camera = { x: 0 };
+        let particles = []; // For Fireworks!
 
         let lloyd = {};
         const keys = { right: false, left: false, up: false };
 
-        // Game Objects
         let platforms = []; let questionBox = {}; let wall = {}; let verticalLaser = {}; 
         let computer = {}; let cage = {}; let friends = []; let portal = {}; 
         let spikeBalls = []; let sideLasers = []; 
@@ -47,10 +95,8 @@
             };
         }
 
-        // --- LEVEL 1 SETUP ---
         function loadLevel1() {
-            currentLevel = 1;
-            lloyd = resetLloyd();
+            currentLevel = 1; lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
             questionBox = { x: 400, y: 180, w: 50, h: 50, active: true, type: "fist" };
             wall = { x: 900, y: 150, w: 50, h: 200, active: true };
@@ -60,56 +106,70 @@
             friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#9900ff" }, { x: 2180, y: 300, w: 40, h: 50, color: "#00ff99" } ];
             portal = { x: 2300, y: 200, w: 60, h: 100, active: false };
             groundRobots = []; birdRobots = []; enemyLasers = []; boss = { active: false };
+            if(gameState === "PLAYING") startMusic(1);
         }
 
-        // --- LEVEL 2 SETUP ---
         function loadLevel2() {
-            currentLevel = 2;
-            lloyd = resetLloyd();
+            currentLevel = 2; lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 600, h: 50}, {x: 800, y: 350, w: 600, h: 50}, {x: 1600, y: 350, w: 800, h: 50} ];
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "shield" };
             spikeBalls = [ {x: 700, y: -100, r: 20, speed: 4}, {x: 1200, y: -50, r: 20, speed: 5}, {x: 1500, y: -200, r: 20, speed: 6} ];
             sideLasers = [ {x: 900, y: 320, w: 40, h: 10, speed: 4, dir: 1, minX: 850, maxX: 1300} ];
-            
             cage = { x: 2100, y: 200, w: 150, h: 150, active: true };
             friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#ff8800" }, { x: 2180, y: 300, w: 40, h: 50, color: "#ff0088" } ]; 
             portal = { x: 2300, y: 200, w: 60, h: 100, active: false }; 
-            
             wall = { active: false }; verticalLaser = { active: false }; computer = { active: false };
+            startMusic(2);
         }
 
-        // --- LEVEL 3 SETUP ---
         function loadLevel3() {
-            currentLevel = 3;
-            lloyd = resetLloyd();
+            currentLevel = 3; lloyd = resetLloyd();
             platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; 
             questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "mech" };
             enemyLasers = [];
-            
-            groundRobots = [
-                {x: 800, y: 300, w: 50, h: 50, timer: 0, active: true},
-                {x: 1300, y: 300, w: 50, h: 50, timer: 30, active: true}
-            ];
-            
-            birdRobots = [
-                {x: 1000, y: 100, w: 60, h: 30, timer: 0, flySpeed: 2, dir: 1, active: true},
-                {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1, active: true}
-            ];
-
+            groundRobots = [ {x: 800, y: 300, w: 50, h: 50, timer: 0, active: true}, {x: 1300, y: 300, w: 50, h: 50, timer: 30, active: true} ];
+            birdRobots = [ {x: 1000, y: 100, w: 60, h: 30, timer: 0, flySpeed: 2, dir: 1, active: true}, {x: 1600, y: 80, w: 60, h: 30, timer: 45, flySpeed: 3, dir: -1, active: true} ];
             boss = { x: 2100, y: 230, w: 120, h: 120, active: true, timer: 0, hp: 1 };
-            
             spikeBalls = []; sideLasers = []; cage = { active: false }; friends = []; portal = { active: false };
+            startMusic(3);
+        }
+
+        function triggerFireworks(x, y) {
+            for(let i=0; i<80; i++) {
+                particles.push({
+                    x: x + 60, y: y + 60,
+                    vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    life: 1.0
+                });
+            }
         }
 
         loadLevel1();
 
+        // --- CONTROLS ---
+        canvas.addEventListener("click", () => {
+            if (gameState === "START") {
+                initAudio();
+                gameState = "PLAYING";
+                startMusic(1);
+            }
+        });
+
         document.addEventListener("keydown", function(event) {
             if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = true;
             if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = true;
-            if ((event.code === "ArrowUp" || event.code === "Space") && lloyd.grounded) {
+            if ((event.code === "ArrowUp" || event.code === "Space") && lloyd.grounded && gameState === "PLAYING") {
                 lloyd.dy = lloyd.jumpPower; lloyd.grounded = false;
+                playSound('jump');
+            }
+            if (event.code === "Enter" && gameState === "WON") {
+                gameState = "PLAYING";
+                particles = [];
+                loadLevel1();
             }
         });
+
         document.addEventListener("keyup", function(event) {
             if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = false;
             if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = false;
@@ -121,7 +181,14 @@
         }
 
         function update() {
-            if (gameWon) return;
+            if (gameState !== "PLAYING" && gameState !== "WON") return;
+
+            // Update Fireworks if Won!
+            if (gameState === "WON") {
+                particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.015; });
+                particles = particles.filter(p => p.life > 0);
+                return; // Stop the rest of the game math!
+            }
 
             if (keys.right) lloyd.dx = lloyd.speed; 
             else if (keys.left) lloyd.dx = -lloyd.speed; 
@@ -138,12 +205,7 @@
                 }
             }
 
-            // Fall in pit
-            if (lloyd.y > 600) { 
-                currentLevel === 1 ? loadLevel1() : loadLevel2(); 
-                return; // Stop updating this frame to prevent errors!
-            }
-            
+            if (lloyd.y > 600) { playSound('hurt'); currentLevel === 1 ? loadLevel1() : loadLevel2(); return; }
             if (lloyd.x < 0) lloyd.x = 0;
             if (lloyd.x + lloyd.width > levelWidth) lloyd.x = levelWidth - lloyd.width;
 
@@ -153,6 +215,7 @@
 
             if (questionBox.active && isTouching(lloyd, questionBox)) {
                 questionBox.active = false; 
+                playSound('powerup');
                 if (questionBox.type === "fist") { lloyd.hasRocketFist = true; lloyd.color = "#ff7700"; }
                 if (questionBox.type === "shield") { lloyd.hasShield = true; lloyd.color = "#cccccc"; }
                 if (questionBox.type === "mech") { 
@@ -162,26 +225,28 @@
             }
 
             if (cage.active && isTouching(lloyd, cage)) {
-                if (currentLevel === 1 && computer.hacked) { cage.active = false; portal.active = true; } 
+                if (currentLevel === 1 && computer.hacked) { cage.active = false; portal.active = true; playSound('smash'); } 
                 else if (currentLevel === 1 && lloyd.dx > 0) { lloyd.x = cage.x - lloyd.width; }
-                else if (currentLevel === 2) { cage.active = false; portal.active = true; }
+                else if (currentLevel === 2) { cage.active = false; portal.active = true; playSound('smash'); }
             }
             
             if (portal.active && isTouching(lloyd, portal)) {
+                playSound('powerup');
                 currentLevel === 1 ? loadLevel2() : loadLevel3();
                 return;
             }
 
             if (currentLevel === 1) {
                 if (wall.active && isTouching(lloyd, wall)) {
-                    if (lloyd.hasRocketFist) wall.active = false; else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
+                    if (lloyd.hasRocketFist) { wall.active = false; playSound('smash'); } 
+                    else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
                 }
                 if (verticalLaser.active) {
                     verticalLaser.y += verticalLaser.speed * verticalLaser.dir;
                     if (verticalLaser.y + verticalLaser.h >= 350) verticalLaser.dir = -1; else if (verticalLaser.y <= 100) verticalLaser.dir = 1;  
-                    if (isTouching(lloyd, verticalLaser)) lloyd.x = verticalLaser.x - 100;
+                    if (isTouching(lloyd, verticalLaser)) { lloyd.x = verticalLaser.x - 100; playSound('hurt'); }
                 }
-                if (!computer.hacked && isTouching(lloyd, computer)) { computer.hacked = true; verticalLaser.active = false; }
+                if (!computer.hacked && isTouching(lloyd, computer)) { computer.hacked = true; verticalLaser.active = false; playSound('powerup'); }
             }
 
             if (currentLevel === 2) {
@@ -190,14 +255,14 @@
                     if (sb.y > 450) sb.y = -50; 
                     let box = {x: sb.x - sb.r, y: sb.y - sb.r, w: sb.r*2, h: sb.r*2};
                     if (isTouching(lloyd, box)) { 
-                        if (lloyd.hasShield) { lloyd.x -= 10; }
-                        else { loadLevel1(); return; } // Safely return!
+                        if (lloyd.hasShield) { lloyd.x -= 10; playSound('hurt'); }
+                        else { playSound('hurt'); loadLevel1(); return; } 
                     }
                 }
                 for (let sl of sideLasers) {
                     sl.x += sl.speed * sl.dir;
                     if (sl.x > sl.maxX || sl.x < sl.minX) sl.dir *= -1;
-                    if (isTouching(lloyd, sl)) lloyd.x = sl.minX - 60; 
+                    if (isTouching(lloyd, sl)) { lloyd.x = sl.minX - 60; playSound('hurt'); }
                 }
             }
 
@@ -207,11 +272,11 @@
                     gr.timer++;
                     if (gr.timer > 100) { 
                         enemyLasers.push({x: gr.x, y: gr.y + 20, w: 30, h: 5, vx: -5, vy: 0});
-                        gr.timer = 0;
+                        gr.timer = 0; playSound('laser');
                     }
                     if (isTouching(lloyd, gr)) {
-                        if (!lloyd.hasMech) { loadLevel3(); return; } // Safely return!
-                        else gr.active = false; 
+                        if (!lloyd.hasMech) { playSound('hurt'); loadLevel3(); return; } 
+                        else { gr.active = false; playSound('smash'); }
                     }
                 }
 
@@ -222,11 +287,11 @@
                     br.timer++;
                     if (br.timer > 80) { 
                         enemyLasers.push({x: br.x + 25, y: br.y + 30, w: 10, h: 20, vx: 0, vy: 4});
-                        br.timer = 0;
+                        br.timer = 0; playSound('laser');
                     }
                     if (isTouching(lloyd, br)) {
-                        if (!lloyd.hasMech) { loadLevel3(); return; } // Safely return!
-                        else br.active = false; 
+                        if (!lloyd.hasMech) { playSound('hurt'); loadLevel3(); return; } 
+                        else { br.active = false; playSound('smash'); }
                     }
                 }
 
@@ -236,14 +301,11 @@
                     
                     if (isTouching(lloyd, l)) {
                         if (!lloyd.hasMech) {
-                            loadLevel3(); // Unarmored hit! Reset Level 3.
-                            return; // PREVENTS THE CRASH!
+                            playSound('hurt'); loadLevel3(); return; 
                         } else {
-                            lloyd.hasMech = false;
-                            lloyd.color = "#00aaff";
-                            lloyd.width = 50;
-                            lloyd.height = 50;
-                            lloyd.y += 30; 
+                            playSound('smash'); // Armor breaking sound!
+                            lloyd.hasMech = false; lloyd.color = "#00aaff";
+                            lloyd.width = 50; lloyd.height = 50; lloyd.y += 30; 
                             enemyLasers.splice(i, 1); 
                             continue;
                         }
@@ -255,19 +317,20 @@
                     boss.timer++;
                     if (boss.timer > 60) { 
                         enemyLasers.push({x: boss.x - 40, y: boss.y + 60, w: 40, h: 10, vx: -6, vy: 0});
-                        boss.timer = 0;
+                        boss.timer = 0; playSound('laser');
                     }
 
                     if (isTouching(lloyd, boss)) {
                         if (lloyd.dy > 0 && lloyd.y + lloyd.height < boss.y + 40) {
                             boss.active = false; 
                             lloyd.dy = -15; 
-                            gameWon = true; 
+                            gameState = "WON"; // TRIGGER VICTORY!
+                            if(musicInterval) clearInterval(musicInterval);
+                            playSound('smash'); setTimeout(()=>playSound('powerup'), 200);
+                            triggerFireworks(boss.x, boss.y);
                         } else {
-                            if (!lloyd.hasMech) {
-                                loadLevel3();
-                                return; // PREVENTS THE CRASH!
-                            } else {
+                            if (!lloyd.hasMech) { playSound('hurt'); loadLevel3(); return; } 
+                            else {
                                 if (lloyd.dx > 0) lloyd.x = boss.x - lloyd.width;
                                 else if (lloyd.dx < 0) lloyd.x = boss.x + boss.w;
                             }
@@ -279,6 +342,18 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // --- START SCREEN ---
+            if (gameState === "START") {
+                ctx.fillStyle = "#111"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#00ffff"; ctx.font = "bold 50px Arial"; ctx.textAlign = "center";
+                ctx.fillText("LLOYD'S LAIR RESCUE", canvas.width/2, 150);
+                ctx.fillStyle = "white"; ctx.font = "20px Arial";
+                ctx.fillText("Click anywhere to start the game and unlock audio!", canvas.width/2, 250);
+                ctx.textAlign = "left"; // reset
+                return;
+            }
+
             ctx.save(); ctx.translate(-camera.x, 0);
 
             if (currentLevel === 1) ctx.fillStyle = "#333";
@@ -344,6 +419,14 @@
                 }
             }
 
+            // Draw Fireworks if Won!
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+
             ctx.fillStyle = lloyd.color; ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
             if (lloyd.hasMech) {
                 ctx.fillStyle = "cyan"; ctx.fillRect(lloyd.x + 20, lloyd.y + 20, lloyd.width - 40, 20); 
@@ -351,16 +434,21 @@
 
             ctx.restore(); 
 
+            // --- HUD ---
             ctx.fillStyle = "white"; ctx.font = "20px Arial";
             ctx.fillText("Level " + currentLevel, 20, 30);
             
-            if (gameWon) {
-                ctx.fillStyle = "#00ff00"; ctx.font = "bold 40px Arial";
-                ctx.fillText("BOSS DEFEATED! YOU WIN THE GAME!", 50, 200);
+            if (gameState === "WON") {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0,0, canvas.width, canvas.height); // Darken screen
+                ctx.fillStyle = "#00ff00"; ctx.font = "bold 40px Arial"; ctx.textAlign = "center";
+                ctx.fillText("BOSS DEFEATED! YOU WIN!", canvas.width/2, 180);
+                ctx.fillStyle = "white"; ctx.font = "20px Arial";
+                ctx.fillText("Press ENTER to play again!", canvas.width/2, 230);
+                ctx.textAlign = "left"; // reset
             } else if (currentLevel === 3 && !lloyd.hasMech) {
                 ctx.fillText("Dodge the robots! Get the Mech Suit from the ? block!", 100, 30);
             } else if (currentLevel === 3 && boss.active) {
-                ctx.fillText("MECH SUIT ACTIVE! Watch out, lasers will break your armor!", 100, 30);
+                ctx.fillText("MECH SUIT ACTIVE! Jump on the Boss!", 100, 30);
             }
         }
 
