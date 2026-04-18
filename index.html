@@ -33,43 +33,86 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        const levelWidth = 2400; 
+        let levelWidth = 2400; 
+        let currentLevel = 1;
         const camera = { x: 0 };
 
         // Lloyd's Stats
         const lloyd = {
-            x: 50,
-            y: 300,
-            width: 50,
-            height: 50,
-            color: "#00aaff", 
-            speed: 6,       
-            dx: 0,           
-            dy: 0,           
-            gravity: 0.6,    
-            jumpPower: -12,  
-            grounded: false,
-            hasRocketFist: false 
+            x: 50, y: 300, width: 50, height: 50, color: "#00aaff", 
+            speed: 6, dx: 0, dy: 0, gravity: 0.6, jumpPower: -13, grounded: false,
+            hasRocketFist: false, hasShield: false
         };
 
-        const questionBox = { x: 400, y: 180, width: 50, height: 50, active: true };
-        const wall = { x: 900, y: 150, width: 50, height: 200, active: true };
-        const laser = { x: 1300, y: 200, width: 10, height: 150, active: true, speed: 5, direction: 1 };
-        const computer = { x: 1600, y: 300, width: 40, height: 50, hacked: false };
-        
-        const cage = { x: 2100, y: 200, width: 150, height: 150, active: true };
-        const friends = [
-            { x: 2120, y: 300, width: 40, height: 50, color: "#9900ff" }, 
-            { x: 2180, y: 300, width: 40, height: 50, color: "#00ff99" }  
-        ];
-        
-        // NEW: The Escape Portal!
-        const portal = { x: 2300, y: 200, width: 60, height: 100, active: false };
-        
-        let gameWon = false;
-        let inPortal = false; // Checks if Lloyd jumped in!
-
         const keys = { right: false, left: false, up: false };
+
+        // Game Objects
+        let platforms = [];
+        let questionBox = {};
+        let wall = {};
+        let verticalLaser = {};
+        let computer = {};
+        let cage = {};
+        let friends = [];
+        let portal = {};
+        let spikeBalls = [];
+        let sideLasers = [];
+
+        // --- LEVEL 1 SETUP ---
+        function loadLevel1() {
+            currentLevel = 1;
+            lloyd.x = 50; lloyd.y = 300; lloyd.dx = 0; lloyd.dy = 0;
+            lloyd.color = "#00aaff"; lloyd.hasRocketFist = false; lloyd.hasShield = false;
+            
+            platforms = [ {x: 0, y: 350, w: 2400, h: 50} ]; // Solid floor
+            questionBox = { x: 400, y: 180, w: 50, h: 50, active: true, type: "fist" };
+            wall = { x: 900, y: 150, w: 50, h: 200, active: true };
+            verticalLaser = { x: 1300, y: 200, w: 10, h: 150, active: true, speed: 5, dir: 1 };
+            computer = { x: 1600, y: 300, w: 40, h: 50, hacked: false };
+            cage = { x: 2100, y: 200, w: 150, h: 150, active: true };
+            friends = [ { x: 2120, y: 300, w: 40, h: 50, color: "#9900ff" }, { x: 2180, y: 300, w: 40, h: 50, color: "#00ff99" } ];
+            portal = { x: 2300, y: 200, w: 60, h: 100, active: false };
+            spikeBalls = [];
+            sideLasers = [];
+        }
+
+        // --- LEVEL 2 SETUP ---
+        function loadLevel2() {
+            currentLevel = 2;
+            lloyd.x = 50; lloyd.y = 300; lloyd.dx = 0; lloyd.dy = 0;
+            lloyd.color = "#00aaff"; lloyd.hasRocketFist = false; lloyd.hasShield = false;
+            
+            // Floor with Pits!
+            platforms = [ 
+                {x: 0, y: 350, w: 600, h: 50}, 
+                {x: 800, y: 350, w: 600, h: 50},  // Pit from 600 to 800
+                {x: 1600, y: 350, w: 800, h: 50}  // Pit from 1400 to 1600
+            ];
+            
+            questionBox = { x: 300, y: 180, w: 50, h: 50, active: true, type: "shield" };
+            
+            // Clear Level 1 stuff
+            wall = { active: false };
+            verticalLaser = { active: false };
+            computer = { active: false };
+            cage = { active: false };
+            friends = [];
+            portal = { active: false };
+
+            // Level 2 Hazards
+            spikeBalls = [
+                {x: 700, y: -100, r: 20, speed: 4}, // Falling over pit 1
+                {x: 1200, y: -50, r: 20, speed: 5}, // Falling in middle
+                {x: 1500, y: -200, r: 20, speed: 6} // Falling over pit 2
+            ];
+            
+            sideLasers = [
+                {x: 900, y: 320, w: 40, h: 10, speed: 4, dir: 1, minX: 850, maxX: 1300}
+            ];
+        }
+
+        // Start the game at Level 1
+        loadLevel1();
 
         document.addEventListener("keydown", function(event) {
             if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = true;
@@ -79,37 +122,45 @@
                 lloyd.grounded = false;
             }
         });
-
         document.addEventListener("keyup", function(event) {
             if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = false;
             if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = false;
         });
 
         function isTouching(rect1, rect2) {
-            return rect1.x < rect2.x + rect2.width &&
-                   rect1.x + rect1.width > rect2.x &&
-                   rect1.y < rect2.y + rect2.height &&
-                   rect1.y + rect1.height > rect2.y;
+            return rect1.x < rect2.x + (rect2.width || rect2.w) &&
+                   rect1.x + lloyd.width > rect2.x &&
+                   rect1.y < rect2.y + (rect2.height || rect2.h) &&
+                   rect1.y + lloyd.height > rect2.y;
         }
 
         function update() {
-            if (inPortal) return; // Stop the game completely if we are warping!
-
             // Movement
-            if (keys.right) { lloyd.dx = lloyd.speed; }
-            else if (keys.left) { lloyd.dx = -lloyd.speed; }
-            else { lloyd.dx = 0; }
+            if (keys.right) lloyd.dx = lloyd.speed; 
+            else if (keys.left) lloyd.dx = -lloyd.speed; 
+            else lloyd.dx = 0; 
 
             lloyd.dy += lloyd.gravity;
             lloyd.x += lloyd.dx;
             lloyd.y += lloyd.dy;
 
-            // Floor logic
-            const floorY = 350;
-            if (lloyd.y + lloyd.height >= floorY) {
-                lloyd.y = floorY - lloyd.height;
-                lloyd.dy = 0;
-                lloyd.grounded = true;
+            // Floor & Pit Logic
+            lloyd.grounded = false;
+            let onFloor = false;
+            for (let plat of platforms) {
+                if (lloyd.x < plat.x + plat.w && lloyd.x + lloyd.width > plat.x &&
+                    lloyd.y + lloyd.height >= plat.y && lloyd.y + lloyd.height <= plat.y + 20 && lloyd.dy >= 0) {
+                    lloyd.y = plat.y - lloyd.height;
+                    lloyd.dy = 0;
+                    lloyd.grounded = true;
+                    onFloor = true;
+                }
+            }
+
+            // Did Lloyd fall in a pit?
+            if (lloyd.y > 600) {
+                if (currentLevel === 1) loadLevel1();
+                if (currentLevel === 2) loadLevel2();
             }
 
             if (lloyd.x < 0) lloyd.x = 0;
@@ -120,143 +171,145 @@
             if (camera.x < 0) camera.x = 0;
             if (camera.x > levelWidth - canvas.width) camera.x = levelWidth - canvas.width;
 
-            // Interactions
+            // ? Block Logic
             if (questionBox.active && isTouching(lloyd, questionBox)) {
                 questionBox.active = false; 
-                lloyd.hasRocketFist = true; 
-                lloyd.color = "#ff7700";    
-            }
-
-            if (wall.active && isTouching(lloyd, wall)) {
-                if (lloyd.hasRocketFist) {
-                    wall.active = false; 
-                } else {
-                    if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
+                if (questionBox.type === "fist") {
+                    lloyd.hasRocketFist = true; lloyd.color = "#ff7700"; 
+                } else if (questionBox.type === "shield") {
+                    lloyd.hasShield = true; lloyd.color = "#cccccc"; // Silver Shield!
                 }
             }
 
-            if (laser.active) {
-                laser.y += laser.speed * laser.direction;
-                if (laser.y + laser.height >= floorY) laser.direction = -1; 
-                else if (laser.y <= 100) laser.direction = 1;  
-            }
-
-            if (laser.active && isTouching(lloyd, laser)) {
-                lloyd.x = laser.x - 100;
-            }
-
-            if (!computer.hacked && isTouching(lloyd, computer)) {
-                computer.hacked = true;
-                laser.active = false; 
-            }
-
-            // Touching the Cage
-            if (cage.active && isTouching(lloyd, cage)) {
-                if (computer.hacked) {
-                    cage.active = false; 
-                    gameWon = true;      
-                    portal.active = true; // Turn the portal ON!
-                } else {
-                    if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
+            // Level 1 Interactions
+            if (currentLevel === 1) {
+                if (wall.active && isTouching(lloyd, wall)) {
+                    if (lloyd.hasRocketFist) wall.active = false; 
+                    else if (lloyd.dx > 0) lloyd.x = wall.x - lloyd.width; 
+                }
+                if (verticalLaser.active) {
+                    verticalLaser.y += verticalLaser.speed * verticalLaser.dir;
+                    if (verticalLaser.y + verticalLaser.h >= 350) verticalLaser.dir = -1; 
+                    else if (verticalLaser.y <= 100) verticalLaser.dir = 1;  
+                    if (isTouching(lloyd, verticalLaser)) lloyd.x = verticalLaser.x - 100;
+                }
+                if (!computer.hacked && isTouching(lloyd, computer)) {
+                    computer.hacked = true; verticalLaser.active = false; 
+                }
+                if (cage.active && isTouching(lloyd, cage)) {
+                    if (computer.hacked) { cage.active = false; portal.active = true; } 
+                    else if (lloyd.dx > 0) lloyd.x = cage.x - lloyd.width;
+                }
+                // Warp to Level 2!
+                if (portal.active && isTouching(lloyd, portal)) {
+                    loadLevel2();
                 }
             }
 
-            // NEW: Touching the Portal
-            if (portal.active && isTouching(lloyd, portal)) {
-                inPortal = true; // TRIGGER LEVEL 2 WARP!
+            // Level 2 Interactions
+            if (currentLevel === 2) {
+                // Spiky Balls
+                for (let sb of spikeBalls) {
+                    sb.y += sb.speed;
+                    if (sb.y > 450) sb.y = -50; // Respawn at top
+                    
+                    // Simple circle collision
+                    let box = {x: sb.x - sb.r, y: sb.y - sb.r, w: sb.r*2, h: sb.r*2};
+                    if (isTouching(lloyd, box)) {
+                        if (!lloyd.hasShield) {
+                            loadLevel1(); // BOUNCE ALL THE WAY TO LEVEL 1!
+                        } else {
+                            // Shield protects, but bounces him back a bit
+                            lloyd.x -= 10;
+                        }
+                    }
+                }
+
+                // Side-scrolling Lasers
+                for (let sl of sideLasers) {
+                    sl.x += sl.speed * sl.dir;
+                    if (sl.x > sl.maxX || sl.x < sl.minX) sl.dir *= -1;
+                    if (isTouching(lloyd, sl)) lloyd.x = sl.minX - 60; // Knocked back by laser
+                }
             }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
             ctx.save();
             ctx.translate(-camera.x, 0);
 
-            // Draw long background & Floor
-            ctx.fillStyle = "#333";
+            // Background & Platforms
+            ctx.fillStyle = currentLevel === 1 ? "#333" : "#221133"; // Lvl 2 is dark purple!
             ctx.fillRect(0, 0, levelWidth, canvas.height);
+            
             ctx.fillStyle = "#555555";
-            ctx.fillRect(0, 350, levelWidth, 50);
+            for (let plat of platforms) {
+                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+            }
 
             // Draw ? Block
             if (questionBox.active) {
                 ctx.fillStyle = "#ffcc00"; 
-                ctx.fillRect(questionBox.x, questionBox.y, questionBox.width, questionBox.height);
-                ctx.fillStyle = "black";
-                ctx.font = "bold 30px Arial";
+                ctx.fillRect(questionBox.x, questionBox.y, questionBox.w, questionBox.h);
+                ctx.fillStyle = "black"; ctx.font = "bold 30px Arial";
                 ctx.fillText("?", questionBox.x + 15, questionBox.y + 35);
             }
 
-            // Draw Wall
-            if (wall.active) {
-                ctx.fillStyle = "#aa0000"; 
-                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
-            }
-
-            // Draw Laser
-            if (laser.active) {
-                ctx.fillStyle = "#ff0000"; 
-                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
-            }
-
-            // Draw Computer
-            ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500";
-            ctx.fillRect(computer.x, computer.y, computer.width, computer.height);
-            ctx.fillStyle = "black";
-            ctx.fillRect(computer.x + 5, computer.y + 5, computer.width - 10, computer.height - 20);
-
-            // Draw Robot Friends
-            friends.forEach(friend => {
-                ctx.fillStyle = friend.color;
-                ctx.fillRect(friend.x, friend.y, friend.width, friend.height);
-            });
-
-            // Draw Cage
-            if (cage.active) {
-                ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; 
-                ctx.fillRect(cage.x, cage.y, cage.width, cage.height);
-                ctx.fillStyle = "#888";
-                for(let i = 0; i < 5; i++) {
-                    ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.height);
+            // Draw Level 1 Stuff
+            if (currentLevel === 1) {
+                if (wall.active) { ctx.fillStyle = "#aa0000"; ctx.fillRect(wall.x, wall.y, wall.w, wall.h); }
+                if (verticalLaser.active) { ctx.fillStyle = "#ff0000"; ctx.fillRect(verticalLaser.x, verticalLaser.y, verticalLaser.w, verticalLaser.h); }
+                ctx.fillStyle = computer.hacked ? "#00ff00" : "#005500";
+                ctx.fillRect(computer.x, computer.y, computer.w, computer.h);
+                ctx.fillStyle = "black"; ctx.fillRect(computer.x + 5, computer.y + 5, computer.w - 10, computer.h - 20);
+                
+                friends.forEach(friend => { ctx.fillStyle = friend.color; ctx.fillRect(friend.x, friend.y, friend.w, friend.h); });
+                
+                if (cage.active) {
+                    ctx.fillStyle = "rgba(150, 150, 150, 0.5)"; ctx.fillRect(cage.x, cage.y, cage.w, cage.h);
+                    ctx.fillStyle = "#888"; for(let i = 0; i < 5; i++) ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.h);
+                }
+                
+                if (portal.active) {
+                    ctx.fillStyle = "#00ffff"; ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
+                    ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.fillText("PORTAL", portal.x - 2, portal.y - 10);
                 }
             }
 
-            // NEW: Draw Portal
-            if (portal.active) {
-                ctx.fillStyle = "#00ffff"; // Glowing Cyan
-                ctx.fillRect(portal.x, portal.y, portal.width, portal.height);
-                ctx.fillStyle = "white";
-                ctx.font = "bold 16px Arial";
-                ctx.fillText("PORTAL", portal.x - 2, portal.y - 10);
+            // Draw Level 2 Stuff
+            if (currentLevel === 2) {
+                // Spiky Balls
+                ctx.fillStyle = "gray";
+                for (let sb of spikeBalls) {
+                    ctx.beginPath();
+                    ctx.arc(sb.x, sb.y, sb.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Draw spikes (just a darker dot for now)
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(sb.x - 2, sb.y - 2, 4, 4);
+                    ctx.fillStyle = "gray"; // reset
+                }
+
+                // Side Lasers
+                ctx.fillStyle = "#ff00ff"; // Pink lasers!
+                for (let sl of sideLasers) {
+                    ctx.fillRect(sl.x, sl.y, sl.w, sl.h);
+                }
             }
 
-            // Draw Lloyd (Unless he is in the portal!)
-            if (!inPortal) {
-                ctx.fillStyle = lloyd.color;
-                ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
-            }
+            // Draw Lloyd
+            ctx.fillStyle = lloyd.color;
+            ctx.fillRect(lloyd.x, lloyd.y, lloyd.width, lloyd.height);
 
             ctx.restore(); 
 
-            // HUD / UI TEXT
-            ctx.fillStyle = "white";
-            ctx.font = "20px Arial";
+            // HUD
+            ctx.fillStyle = "white"; ctx.font = "20px Arial";
+            ctx.fillText("Level " + currentLevel, 20, 30);
             
-            if (inPortal) {
-                ctx.fillStyle = "#00ffff";
-                ctx.font = "bold 40px Arial";
-                ctx.fillText("WARPING TO LEVEL 2...", 150, 200);
-            } else if (gameWon) {
-                ctx.fillStyle = "#00ff00";
-                ctx.font = "bold 30px Arial";
-                ctx.fillText("ROBOTS RESCUED! ENTER THE PORTAL!", 100, 200);
-            } else if (!lloyd.hasRocketFist) {
-                ctx.fillText("Explore the lair! Find the ? block!", 20, 30);
-            } else if (!computer.hacked) {
-                ctx.fillText("Smash the wall, dodge the laser, hack the computer!", 20, 30);
-            } else {
-                ctx.fillText("SYSTEM HACKED! Run right to rescue the robots!", 20, 30);
+            if (currentLevel === 2 && !lloyd.hasShield) {
+                ctx.fillText("Get the ? block for a Spike Shield, or spikes send you to Lvl 1!", 100, 30);
             }
         }
 
