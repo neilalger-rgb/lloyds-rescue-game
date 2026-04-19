@@ -58,7 +58,6 @@
             }, 250);
         }
 
-        // --- GAME VARIABLES ---
         let gameState = "START"; let levelWidth = 2400; let currentLevel = 1;
         const camera = { x: 0 }; let particles = []; let floatingTexts = [];
         let lloyd = {}; const keys = { right: false, left: false, up: false };
@@ -68,40 +67,113 @@
         let spikeBalls = []; let sideLasers = []; 
         let groundRobots = []; let birdRobots = []; let enemyLasers = []; let boss = {};
 
-        // --- NEW: LLOYD PIXEL ART (16x16 Grid) ---
-        // 0 = Transparent, 1 = Black, 2 = Armor (Dynamic!), 3 = Green Eyes, 4 = White Wings/Grid
+        // --- ALL PIXEL ART GRIDS (16x16) ---
+        
         const lloydPixels = [
-            [0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0], // Antenna tips
-            [0,1,2,1,0,1,1,1,1,1,1,0,1,2,1,0], // Antennas
-            [1,2,2,2,1,2,2,2,2,2,2,1,2,2,2,1], // Antenna base
-            [0,1,1,1,2,2,2,2,2,2,2,2,1,1,1,0], // Top Head
-            [0,0,0,1,2,1,3,1,1,3,1,2,1,0,0,0], // Green Eyes
-            [0,0,0,1,2,1,3,1,1,3,1,2,1,0,0,0], // Green Eyes
-            [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0], // Cheeks
-            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0], // Mouth top
-            [0,0,0,1,4,1,4,1,1,4,1,4,1,0,0,0], // Grid Mouth!
-            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0], // Mouth bottom
-            [0,4,4,1,2,2,2,2,2,2,2,2,1,4,4,0], // Wings top
-            [4,4,4,4,1,2,2,2,2,2,2,1,4,4,4,4], // Wings middle
-            [0,4,4,0,1,2,2,2,2,2,2,1,0,4,4,0], // Wings bottom
-            [0,0,0,0,0,1,2,2,2,2,1,0,0,0,0,0], // Body
-            [0,0,0,0,0,1,2,1,1,2,1,0,0,0,0,0], // Legs
-            [0,0,0,0,1,1,1,0,0,1,1,1,0,0,0,0]  // Feet
+            [0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0],
+            [0,1,2,1,0,1,1,1,1,1,1,0,1,2,1,0],
+            [1,2,2,2,1,2,2,2,2,2,2,1,2,2,2,1],
+            [0,1,1,1,2,2,2,2,2,2,2,2,1,1,1,0],
+            [0,0,0,1,2,1,3,1,1,3,1,2,1,0,0,0],
+            [0,0,0,1,2,1,3,1,1,3,1,2,1,0,0,0],
+            [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,0,0,1,4,1,4,1,1,4,1,4,1,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,4,4,1,2,2,2,2,2,2,2,2,1,4,4,0],
+            [4,4,4,4,1,2,2,2,2,2,2,1,4,4,4,4],
+            [0,4,4,0,1,2,2,2,2,2,2,1,0,4,4,0],
+            [0,0,0,0,0,1,2,2,2,2,1,0,0,0,0,0],
+            [0,0,0,0,0,1,2,1,1,2,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,1,1,1,0,0,0,0]
         ];
 
-        // NEW: Draw Sprite Function
-        function drawSprite(spriteArray, x, y, w, h, armorColor) {
-            const pixelSize = w / spriteArray[0].length;
+        const chestPixels = [
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0],
+            [0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0],
+            [0,1,2,1,1,1,1,3,3,1,1,1,1,2,1,0],
+            [0,1,2,1,3,3,1,3,3,1,3,3,1,2,1,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+            [0,1,2,2,2,2,1,3,3,1,2,2,2,2,1,0],
+            [0,1,2,2,2,2,1,1,1,1,2,2,2,2,1,0],
+            [0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0],
+            [0,1,2,2,1,2,2,1,1,2,2,1,2,2,1,0],
+            [0,1,2,2,1,2,2,1,1,2,2,1,2,2,1,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        const robotPixels = [
+            [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+            [0,0,1,2,2,1,1,1,1,1,1,2,1,0,0,0],
+            [0,1,2,2,1,3,3,3,3,3,3,1,2,1,0,0],
+            [0,1,2,2,1,3,3,3,3,3,3,1,2,1,0,0],
+            [0,1,2,2,2,1,1,1,1,1,1,2,2,1,0,0],
+            [0,1,2,2,2,2,2,2,2,2,2,2,2,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            [0,1,2,2,1,2,2,2,2,2,2,1,2,1,0,0],
+            [0,1,2,2,1,2,2,2,2,2,2,1,2,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            [0,0,1,4,4,1,4,4,4,4,1,4,4,1,0,0],
+            [0,1,4,4,4,4,1,4,4,1,4,4,4,4,1,0],
+            [0,1,4,1,4,4,4,1,1,4,4,4,1,4,1,0],
+            [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        const birdPixels = [
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0],
+            [0,0,0,0,1,2,2,2,2,2,2,1,0,0,0,0],
+            [0,0,0,1,2,4,4,2,2,4,4,2,1,0,0,0],
+            [3,3,3,1,2,4,4,2,2,4,4,2,1,3,3,3],
+            [3,3,3,3,1,2,2,2,2,2,2,1,3,3,3,3],
+            [0,3,3,3,1,1,1,2,2,1,1,1,3,3,3,0],
+            [0,0,3,3,0,0,1,1,1,1,0,0,3,3,0,0],
+            [0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        const bossPixels = [
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0],
+            [0,1,2,2,1,1,2,2,2,1,1,2,2,2,1,0],
+            [0,1,2,1,3,3,1,2,1,3,3,1,2,2,1,0], 
+            [0,1,2,1,3,3,1,2,1,3,3,1,2,2,1,0],
+            [0,1,2,2,1,1,2,2,2,1,1,2,2,2,1,0],
+            [0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0],
+            [1,2,2,2,2,2,1,1,1,2,2,2,2,2,2,1],
+            [1,2,2,2,2,1,3,3,3,1,2,2,2,2,2,1], 
+            [1,4,4,2,2,1,3,3,3,1,2,2,4,4,4,1], 
+            [1,4,4,4,2,2,1,1,1,2,2,4,4,4,4,1],
+            [0,1,4,4,4,2,2,2,2,2,2,4,4,4,1,0],
+            [0,0,1,4,4,4,1,1,1,1,4,4,4,1,0,0],
+            [0,0,0,1,1,1,2,2,1,2,2,1,1,0,0,0],
+            [0,0,0,0,1,2,2,1,0,1,2,2,1,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0]
+        ];
+
+        // --- UNIVERSAL SPRITE RENDERER ---
+        function drawSprite(spriteArray, x, y, w, h, palette) {
+            const pixelSizeX = w / spriteArray[0].length;
+            const pixelSizeY = h / spriteArray.length;
             for (let row = 0; row < spriteArray.length; row++) {
                 for (let col = 0; col < spriteArray[row].length; col++) {
                     const colorCode = spriteArray[row][col];
-                    if (colorCode !== 0) {
-                        if (colorCode === 1) ctx.fillStyle = "black";
-                        if (colorCode === 2) ctx.fillStyle = armorColor; // Dynamic!
-                        if (colorCode === 3) ctx.fillStyle = "#00ff00";  // Green eyes
-                        if (colorCode === 4) ctx.fillStyle = "white";    // Wings & grid
-                        
-                        ctx.fillRect(x + (col * pixelSize), y + (row * pixelSize), Math.ceil(pixelSize), Math.ceil(pixelSize));
+                    if (colorCode !== 0 && palette[colorCode]) {
+                        ctx.fillStyle = palette[colorCode];
+                        ctx.fillRect(x + (col * pixelSizeX), y + (row * pixelSizeY), Math.ceil(pixelSizeX), Math.ceil(pixelSizeY));
                     }
                 }
             }
@@ -167,7 +239,6 @@
 
         loadLevel1();
 
-        // --- CONTROLS ---
         canvas.addEventListener("click", () => {
             if (gameState === "START") { initAudio(); gameState = "PLAYING"; startMusic(1); }
         });
@@ -334,9 +405,9 @@
             
             ctx.fillStyle = "#555555"; for (let plat of platforms) ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
+            // PIXEL DRAWING FOR THE CHEST
             if (questionBox.active) {
-                ctx.fillStyle = "#ffcc00"; ctx.fillRect(questionBox.x, questionBox.y, questionBox.w, questionBox.h);
-                ctx.fillStyle = "black"; ctx.font = "bold 30px Arial"; ctx.fillText("?", questionBox.x + 15, questionBox.y + 35);
+                drawSprite(chestPixels, questionBox.x, questionBox.y, questionBox.w, questionBox.h, { 1: "black", 2: "#555555", 3: "#00ffff" });
             }
 
             friends.forEach(f => { ctx.fillStyle = f.color; ctx.fillRect(f.x, f.y, f.w, f.h); });
@@ -364,29 +435,23 @@
             }
 
             if (currentLevel === 3) {
-                ctx.fillStyle = "#ff4444";
+                // PIXEL DRAWING FOR ENEMIES & BOSS
                 for (let gr of groundRobots) {
-                    if (!gr.active) continue; ctx.fillRect(gr.x, gr.y, gr.w, gr.h);
-                    ctx.fillStyle = "cyan"; ctx.fillRect(gr.x - 5, gr.y + 15, 10, 10); ctx.fillStyle = "#ff4444";
+                    if (gr.active) drawSprite(robotPixels, gr.x, gr.y, gr.w, gr.h, { 1: "black", 2: "#ff4444", 3: "#00ffff", 4: "#555555" });
                 }
-                ctx.fillStyle = "#99ccff";
                 for (let br of birdRobots) {
-                    if (!br.active) continue; ctx.fillRect(br.x, br.y, br.w, br.h);
-                    ctx.fillStyle = "white"; ctx.fillRect(br.x + 20, br.y + 10, 20, 10); ctx.fillStyle = "#99ccff";
+                    if (br.active) drawSprite(birdPixels, br.x, br.y, br.w, br.h, { 1: "black", 2: "#99ccff", 3: "white", 4: "#ff0000" });
                 }
                 ctx.fillStyle = "red"; for (let l of enemyLasers) ctx.fillRect(l.x, l.y, l.w, l.h);
 
                 if (boss.active) {
-                    ctx.fillStyle = "#111"; ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
-                    ctx.fillStyle = "red"; ctx.fillRect(boss.x + 10, boss.y + 20, 40, 20); 
-                    ctx.fillStyle = "gray"; ctx.fillRect(boss.x - 20, boss.y + 50, 40, 30); 
+                    drawSprite(bossPixels, boss.x, boss.y, boss.w, boss.h, { 1: "#555555", 2: "#111111", 3: "#ff0000", 4: "gray" });
                 }
             }
 
             particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1.0; });
 
-            // DRAW PIXELATED LLOYD!
-            drawSprite(lloydPixels, lloyd.x, lloyd.y, lloyd.width, lloyd.height, lloyd.color);
+            drawSprite(lloydPixels, lloyd.x, lloyd.y, lloyd.width, lloyd.height, { 1: "black", 2: lloyd.color, 3: "#00ff00", 4: "white" });
 
             floatingTexts.forEach(ft => {
                 ctx.save(); ctx.globalAlpha = Math.max(0, ft.life / 90); ctx.fillStyle = "white"; ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
