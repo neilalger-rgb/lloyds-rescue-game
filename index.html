@@ -43,6 +43,7 @@
             if(type === 'laser') { playTone(800, 'sawtooth', 0.1, 0.05); setTimeout(()=>playTone(400, 'sawtooth', 0.1, 0.05), 50); }
             if(type === 'smash') { playTone(100, 'square', 0.3, 0.2); setTimeout(()=>playTone(50, 'sawtooth', 0.4, 0.2), 100); }
             if(type === 'hurt') { playTone(150, 'sawtooth', 0.2, 0.1); }
+            if(type === 'pop') { playTone(600 + Math.random()*200, 'sine', 0.1, 0.03); } // For Fireworks!
         }
         function startMusic(level) {
             if (musicInterval) clearInterval(musicInterval);
@@ -56,6 +57,37 @@
                 playTone(notes[noteIndex % notes.length], 'square', 0.2, 0.03);
                 noteIndex++;
             }, 250);
+        }
+
+        // NEW: Epic Victory Music Function!
+        function playVictoryFanfare() {
+            if (!audioCtx) return;
+            if (musicInterval) clearInterval(musicInterval);
+            
+            // Triumphant 8-Bit Fanfare
+            const notes = [
+                { f: 523, d: 0.15, t: 0 },    // C
+                { f: 659, d: 0.15, t: 0.15 }, // E
+                { f: 784, d: 0.15, t: 0.3 },  // G
+                { f: 1046, d: 0.4, t: 0.45 }, // High C
+                { f: 784, d: 0.15, t: 0.9 },  // G
+                { f: 1046, d: 0.8, t: 1.1 }   // High C!
+            ];
+            notes.forEach(note => {
+                setTimeout(() => playTone(note.f, 'square', note.d, 0.1), note.t * 1000);
+            });
+
+            // Start a happy looping beat after the fanfare
+            setTimeout(() => {
+                if (gameState !== "WON") return;
+                let vicNotes = [523, 659, 784, 1046, 784, 659];
+                noteIndex = 0;
+                musicInterval = setInterval(() => {
+                    if (!audioCtx) return;
+                    playTone(vicNotes[noteIndex % vicNotes.length], 'triangle', 0.15, 0.05);
+                    noteIndex++;
+                }, 150);
+            }, 2000);
         }
 
         let gameState = "START"; let levelWidth = 2400; let currentLevel = 1;
@@ -221,7 +253,6 @@
             [0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0]
         ];
 
-        // NEW: Brick Wall Sprite
         const wallPixels = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [2,2,2,3,1,2,2,2,2,3,1,2,2,2,2,3],
@@ -241,7 +272,6 @@
             [2,1,3,2,2,2,2,1,3,2,2,2,2,1,2,2]
         ];
 
-        // NEW: Swirling Portal Sprite
         const portalPixels = [
             [0,0,0,0,2,2,2,2,2,2,2,2,0,0,0,0],
             [0,0,0,2,3,3,3,3,3,3,3,3,2,0,0,0],
@@ -331,11 +361,18 @@
             floatingTexts = []; startMusic(3);
         }
 
+        // NEW: BIGGER, MORE COLORFUL FIREWORKS!
         function triggerFireworks(x, y) {
-            for(let i=0; i<80; i++) {
+            playSound('pop'); // Cute pop sound for the firework!
+            const baseHue = Math.random() * 360; // Make each burst a coordinated color
+            for(let i=0; i<100; i++) {
                 particles.push({
-                    x: x + 60, y: y + 60, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
-                    color: `hsl(${Math.random() * 360}, 100%, 50%)`, life: 1.0
+                    x: x, y: y, 
+                    vx: (Math.random() - 0.5) * 18, // Much wider explosion!
+                    vy: (Math.random() - 0.5) * 18,
+                    color: `hsl(${baseHue + (Math.random() * 40 - 20)}, 100%, 60%)`, // Super bright colors!
+                    life: 1.0 + Math.random() * 0.5, // Lasts longer
+                    size: Math.random() * 4 + 2 // Different sizes of sparks!
                 });
             }
         }
@@ -370,7 +407,11 @@
             floatingTexts = floatingTexts.filter(ft => ft.life > 0);
 
             if (gameState === "WON") {
-                particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.015; });
+                // NEW: Continuously shoot off massive fireworks across the screen!
+                if (Math.random() < 0.05) { 
+                    triggerFireworks(camera.x + Math.random() * canvas.width, Math.random() * canvas.height * 0.8);
+                }
+                particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.01; });
                 particles = particles.filter(p => p.life > 0);
                 return; 
             }
@@ -480,8 +521,10 @@
                     if (isTouching(lloyd, boss)) {
                         if (lloyd.dy > 0 && lloyd.y + lloyd.height < boss.y + 40) {
                             boss.active = false; lloyd.dy = -15; gameState = "WON"; 
-                            if(musicInterval) clearInterval(musicInterval);
-                            playSound('smash'); setTimeout(()=>playSound('powerup'), 200); triggerFireworks(boss.x, boss.y);
+                            
+                            // PLAY THE NEW EPIC MUSIC AND START FIREWORKS!
+                            playVictoryFanfare();
+                            triggerFireworks(boss.x + boss.w/2, boss.y + boss.h/2);
                         } else {
                             if (!lloyd.hasMech) { playSound('hurt'); loadLevel3(); return; } 
                             else { if (lloyd.dx > 0) lloyd.x = boss.x - lloyd.width; else if (lloyd.dx < 0) lloyd.x = boss.x + boss.w; }
@@ -521,13 +564,11 @@
                 ctx.fillStyle = "#888"; for(let i = 0; i < 5; i++) ctx.fillRect(cage.x + (i * 35), cage.y, 10, cage.h);
             }
 
-            // NEW: PIXEL DRAWING FOR PORTAL
             if (portal.active) { 
                 drawSprite(portalPixels, portal.x, portal.y, portal.w, portal.h, { 1: "black", 2: "#0055aa", 3: "#00aaff", 4: "white" });
             }
 
             if (currentLevel === 1) {
-                // NEW: PIXEL DRAWING FOR WALL
                 if (wall.active) { 
                     drawSprite(wallPixels, wall.x, wall.y, wall.w, wall.h, { 1: "#222222", 2: "#aa0000", 3: "#ff5555" }); 
                 }
@@ -561,7 +602,15 @@
                 }
             }
 
-            particles.forEach(p => { ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1.0; });
+            // NEW: Render the new massive fireworks!
+            particles.forEach(p => { 
+                ctx.fillStyle = p.color; 
+                ctx.globalAlpha = p.life > 1 ? 1 : p.life; 
+                ctx.beginPath(); 
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); 
+                ctx.fill(); 
+                ctx.globalAlpha = 1.0; 
+            });
 
             drawSprite(lloydPixels, lloyd.x, lloyd.y, lloyd.width, lloyd.height, { 1: "black", 2: lloyd.color, 3: "#00ff00", 4: "white" });
 
